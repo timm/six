@@ -131,23 +131,22 @@ function adds(src, it)
   else for _,row in pairs(src or {}) do add(it,row) end end
   return it end
 
--- norm(i,v) --> n ;; Normalize `v` 0..1 using `i`.
-local function norm(i,v)
-  return (i.has or v=="?") and v or 
-            1 / (1 + math.exp(-1.7 * (v - i.mu)/(i.sd + 1e-32))) end
+-- norm(num,v) --> n ;; Normalize `v` 0..1 using `i`.
+local function norm(num,v)
+  return  1 / (1 + math.exp(-1.7 * (v - num.mu)/(num.sd + 1e-32))) end
 
 -- bin(i,v) --> n ;; Normalize `v` 0..bins-1 using `i`.
 local function bin(i,v)
   return (i.has or v=="?") and v or floor( the.bins * norm(i,v)) end
 
--- disty(i,row) --> n ;; Return distance of `row` to best goal (using Y cols).
-local function disty(i,row,     d)
-  d=0; for _,y in pairs(i.cols.y) do d= d + (norm(y, row[y.at]) - y.best)^2 end
-  return sqrt(d/#i.cols.y)  end
+-- disty(data,row) --> n ;; Return distance of `row` to best goal (using Y cols).
+local function disty(data,row,     d)
+  d=0; for _,y in pairs(data.cols.y) do d= d + (norm(y, row[y.at]) - y.best)^2 end
+  return sqrt(d/#data.cols.y)  end
 
-local function distys(i,rows)
-  return sort(rows or i.rows,
-              function(a,b) return disty(i,a) < disty(i,b) end) end
+local function distys(data,rows)
+  return sort(rows or data.rows,
+              function(a,b) return disty(data,a) < disty(data,b) end) end
 
 --## Think
 
