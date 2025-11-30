@@ -1,5 +1,9 @@
 # 54 Programming Heuristics Illustrated
 
+
+XXX test driven devlopment fig3 of https://ieeexplore.ieee.org/document/10352439
+offers details on test
+
 XXX data molde laiga. presentation layer seeprete to business model
 
 XXX too many vars==> too many ideas
@@ -9,6 +13,9 @@ XXX yo yo is hatton's point (does oo syntax with the say we thing)
 
 XXX test driven devlopment fig3 of https://ieeexplore.ieee.org/document/10352439
 offers details on test
+
+
+
 
 A comprehensive catalog of programming heuristics with examples from `two.lua`, Python, and larger systems.
 
