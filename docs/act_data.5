@@ -1,0 +1,82 @@
+.\" Manpage for two.lua data format
+.\" Contact timm@ieee.org
+.TH TWO_DATA 5 "November 29, 2025" "1.0" "File Formats"
+.SH NAME
+two_data \- input CSV format for the two.lua XAI tool
+.SH DESCRIPTION
+The \fBtwo.lua\fR script processes data stored in comma-separated value (CSV) files. The format relies heavily on a structured header row to define variable types, optimization goals, and ignored columns.
+.PP
+The file must be plain text, with rows separated by newlines and columns separated by commas.
+.SH HEADER SYNTAX
+The first row of the file is crucial. It defines the schema. The naming convention of the column headers tells the script how to treat the data in that column.
+.SS Data Types
+.TP
+.B Uppercase Start (e.g., \fIAge\fR, \fISalary\fR)
+Columns where the header name starts with an uppercase letter are treated as \fBNUM\fR (Numeric). The script will calculate mean and standard deviation for these.
+.TP
+.B Lowercase Start (e.g., \fIjob\fR, \fIrace\fR)
+Columns where the header name starts with a lowercase letter are treated as \fBSYM\fR (Symbolic). The script will calculate mode and entropy for these.
+.SS Column Roles
+.TP
+.B Suffix '+' (e.g., \fIClass+\fR, \fIAcc+\fR)
+Indicates a dependent variable (target) that should be \fBMAXIMIZED\fR. These columns constitute the "Y" (goal) variables.
+.TP
+.B Suffix '-' (e.g., \fILbs-\fR, \fICost-\fR)
+Indicates a dependent variable (target) that should be \fBMINIMIZED\fR. These columns constitute the "Y" (goal) variables.
+.TP
+.B Suffix 'X' (e.g., \fIidX\fR, \fIDateX\fR)
+Indicates a column that should be \fBIGNORED\fR entirely. These are often used for unique identifiers, comments, or raw data not suitable for clustering.
+.TP
+.B No Suffix
+Any column without a '+', '-', or 'X' suffix is treated as an independent variable ("X" variable) used for clustering and distance calculations.
+.SH DATA FORMAT
+.TP
+.B Numeric Values
+Standard integer or floating-point numbers.
+.TP
+.B Symbolic Values
+String identifiers. Note that the script splits strictly on commas, so strings containing commas may cause parsing errors.
+.TP
+.B Missing Values
+Missing data should be represented by the question mark character (\fB?\fR). The script contains logic to handle these during distance calculations (assumed max distance).
+.SH EXAMPLES
+.PP
+.B Example 1: A simple optimization dataset
+.PP
+In this example:
+.br
+- \fInameX\fR is ignored (ends in X).
+.br
+- \fIAge\fR is numeric independent (starts Upper).
+.br
+- \fIjob\fR is symbolic independent (starts lower).
+.br
+- \fISalary+\fR is a numeric goal to maximize.
+.PP
+.nf
+nameX,Age,job,Salary+
+1,25,engineer,50000
+2,30,doctor,90000
+3,?,artist,40000
+.fi
+.PP
+.B Example 2: Multi-objective car selection
+.PP
+In this example:
+.br
+- \fIClndrs\fR, \fIVol\fR, \fIHp\fR are numeric inputs.
+.br
+- \fIorigin\fR is a symbolic input.
+.br
+- \fILbs-\fR is a goal to minimize (weight).
+.br
+- \fIAcc+\fR is a goal to maximize (acceleration).
+.PP
+.nf
+Clndrs,Vol,Hp,origin,Lbs-,Acc+
+8,304,193,1,4732,18.5
+8,360,215,1,4615,14
+4,97,52,3,2130,24.6
+.fi
+.SH SEE ALSO
+.BR two.lua (1)

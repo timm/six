@@ -35,6 +35,12 @@ pull: ## update from main
 push: ## commit to main
 	git commit -am saving;  git push; git status
 
+../docs/act.1.md :; pandoc -s -f man -t markdown ../docs/act.1 -o $@
+../docs/act_data.5.md :; pandoc -s -f man -t markdown ../docs/act_data.5 -o $@
+
+#../docs/%.pdf : pandoc -s -f man -t pdf act_data.5 -o act_data.pdf
+#pandoc -s -f man -t pdf act.1 -o act.pdf
+
 ../docs/%.pdf: %.lua
 	echo "pdf-ing $@ ... "
 	a2ps                        \
