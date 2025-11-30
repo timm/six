@@ -8,12 +8,11 @@ help: ## show this help
          NF==2 && $$1~/^[a-z0-9A-Z_-]+/{                              \
 				         printf "  %s2m%-15s%s %s\n",c,$$1,r,$$2}' $(MAKEFILE_LIST)
 
-docs: ../docs/act.html ../docs/binr.html ../docs/act.1.md ../docs/act_data.5.md ## make docs
+docs: ../docs/act.html ../docs/binr.html ../docs/act.1.md ../docs/act_data.5.md  ../docs/binr.pdf ../docs/act.pdf ## make docs
 
 locs: ## print LOCS
-	cat ../src/act.lua \
-	| gawk '/^(local)? function/        { fun=NR } \
-	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }' \
+	gawk '/^(local)? ?function/ { fun=NR } \
+	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }'  ../src/*.lua \
 					| sort -n | fmt -20
 
 ../docs/%.html : %.lua ../docs/brain.png ../docs/header.md ## lua to html

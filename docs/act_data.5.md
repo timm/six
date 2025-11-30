@@ -1,7 +1,5 @@
 ---
 date: November 29, 2025
-footer: 1.0
-header: File Formats
 section: 5
 title: TWO_DATA
 ---
