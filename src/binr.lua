@@ -41,13 +41,12 @@ local cat = function(a) return "{".. table.concat(a," ") .."}" end
 
 -- o(v) --> s ;; Return a string representation of `v`.
 local function o(v,     list,dict)
-  list = function(a,     u) 
-           for _,v in ipairs(a) do u[1+#u] = o(v) end; return cat(u) end
-  dict = function(d,     u)
-           for k,v in pairs(d)  do u[1+#u] = fmt(":%s %s", k, o(v)) end 
-           return cat(sort(u)) end
+  list=function(a,u) for _,v in ipairs(a) do u[1+#u]=o(v) end; return u end
+  dict=function(d,u)
+     for k,v in pairs(d) do u[1+#u]=fmt(":%s %s",k,o(v)) end; return sort(u) end
   return type(v) == "number" and fmt(v%1==0 and "%.0f" or "%.3f", v) or
-         type(v) ~= "table" and tostring(v) or (#v>0 and list or dict)(v,{}) end
+         type(v) ~= "table" and tostring(v) or 
+         cat((#v>0 and list or dict)(v,{})) end
 
 -- s2a(s) --> a ;; Return array of words from string `s`, split on ",".
 local function s2a(s,   a)
@@ -179,32 +178,32 @@ local function scoresSeen(data,      t,m,eps)
   t={}; for m,row in pairs(data.rows) do t[1+#t] = disty(data,row) end
   t=sort(t)
   m=#t//10
-  eps = (t[9*m] - t[m])/2.56 * 0.35
+  eps = 0.35 * (t[9*m] - t[m])/2.56 
   print(fmt("%.2f, %.2f, %.2f, %.2f, %.2f; eps= %.2f", 
                   t[m], t[3*m], t[5*m], t[7*m], t[9*m], eps)) 
   return data,eps end
 
 local function score(data,eps,     labelled,rows,bestRow,besty,loves,best,y,lives,n)
-  labelled  = clone(data)
+  print""
+  labelled = clone(data)
   besty = 1e32
   lives = lives or the.lives
   seen  = {}
   n=0;
   for m,row in pairs(data.rows) do
-    if lives < 0 or n > the.Budget then break end  
+    if lives < 0 or n >= the.Budget then break end  
     add(labelled, row)
     scorePut(labelled, row)
     seen[row]=row; n=n+1
     if m % the.era==0 then 
-      best = scoreGuess(labelled, m+1, m+20, data.rows)[1][2]
+      best = scoreGuess(labelled, 1, m+20, data.rows)[1][2]
       if not seen[best] then seen[best]=best; n=n+1 end
       y = disty(data, best)
       if y < besty - eps
-      then besty,bestRow = y,best 
-      else lives = lives - 1 end end end 
-  --for _,x in pairs(labelled.cols.x) do
-    --print(" "); for k,b in pairs(x.bins) do print(x.of,k,b.mu,b.n) end end
-  return bestRow, besty,n end 
+      then besty,bestRow = y,best  ; say"!"
+      else lives = lives - 1       ; say"."
+      end end end 
+  return bestRow, besty,n end 
 
 --## Demos
 
@@ -235,15 +234,14 @@ egs["--disty"]= function(_,    data,num,t)
     if n % 25 == 0 then t[1+#t] = disty(data,row) end end 
   print(o(sort(t))) end 
 
-egs["--score"] = function(_,    t,data,eps,u,y) 
+egs["--score"] = function(_,    t,data,eps,y) 
                    data,eps = scoresSeen(DATA(the.file)) 
-                   t,u={},{}
+                   t={}
                    for n = 1,the.repeats do
                      data.rows  = shuffle(data.rows)
                      _,y,seen = score(data,eps) 
-                     u[n] = seen
                      t[n] = 100*y//1 end
-                   print(o(sort(u)).."\n"..o(sort(t))) end 
+                   print("\n"..o(sort(t))) end
 
 egs["--all"] = function(_,   n) 
                 n = the.seed
