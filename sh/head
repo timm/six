@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+figlet -W -f mini $@ | gawk '{print "--    " $0}'

@@ -1,0 +1,53 @@
+SHELL=/bin/bash
+export PATH := $(CURDIR):$(PATH)
+.SILENT:
+
+help: ## show this help
+	@gawk 'BEGIN { FS=":.*?## ";c="\033[1;3"; r="\033[0m";            \
+		             printf "\n%s6mmake%s [%s3moptions%s]:\n\n",c,r,c,r} \
+         NF==2 && $$1~/^[a-z0-9A-Z_-]+/{                              \
+				         printf "  %s2m%-15s%s %s\n",c,$$1,r,$$2}' $(MAKEFILE_LIST)
+
+docs: ../docs/act.html
+
+locs: ## print LOCS
+	cat ../src/act.lua \
+	| gawk '/^(local)? function/        { fun=NR } \
+	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }' \
+					| sort -n | fmt -20
+
+../docs/%.html : %.lua ../docs/brain.png ../docs/header.md ## lua to html
+	mkdir -p ~/tmp
+	cat $<  | gawk 'BEGIN { FS=";;"} \
+	                NR==1 { system("cat ../docs/header.md") ; next }  \
+	                NF==2 && sub(/^-- /,"",$$1) {$$0= "-- <b>"$$1"</b><br>"$$2} \
+	                1 ' > ~/tmp/$< 
+	pycco -d  ../docs ~/tmp/$<
+	echo "p {text-align:right;}" >> ../docs/pycco.css
+	echo "h2 {padding-top: 3px; border-top: 1px solid #000;}" >> ../docs/pycco.css
+
+sh: ## run a customized shell
+	../sh/ell
+
+pull: ## update from main
+	git pull
+
+push: ## commit to main
+	git commit -am saving;  git push; git status
+
+../docs/%.pdf: %.lua
+	echo "pdf-ing $@ ... "
+	a2ps                        \
+		--file-align=virtual       \
+		--line-numbers=1            \
+		--pro=color                  \
+		--lines-per-page=120          \
+		--pretty=../sh/lua.ssh         \
+		--left-title=""                 \
+		--borders=no                     \
+	  --right-footer="page %s. of %s#"  \
+		--landscape                        \
+		--columns 3                         \
+		-M letter                            \
+		-o - $^ | ps2pdf - $@
+	open $@
