@@ -30,8 +30,10 @@ local fmt = string.format
 
 -- sort(t,f) --> t ;; Sort `t` using function `f`.
 local sort = function(t,f) table.sort(t,f); return t end 
+
 -- lt(f) --> f ;; Return a function that sorts `a` and `b` on `f`.
 local lt = function(f) return function(a,b) return f(a) < f(b) end end
+
 -- cat(a) --> s ;; Return a string representation of array `a`.
 local cat = function(a) return "{".. table.concat(a," ") .."}" end
 
