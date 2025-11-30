@@ -1,4 +1,6 @@
-MIT License
+# MIT License
+
+<img width="300" align=right  alt="image" src="https://github.com/user-attachments/assets/65b3bb75-45ad-4d52-87d8-29f4909ac27d" />
 
 Copyright (c) 2025 Tim Menzies
 
