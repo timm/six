@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 # Copyright (c) 2025 Tim Menzies, MIT License
 # https://opensource.org/licenses/MIT
+hi() { 
+  clear
+  echo "${col1}"
+  cat<<'EOF'
+  ███████╗     ██╗     ██╗  ██╗
+  ██╔════╝     ██║     ╚██╗██╔╝
+  ███████╗     ██║      ╚███╔╝ 
+  ╚════██║     ██║      ██╔██╗ 
+  ███████║     ██║     ██╔╝ ██╗
+  ╚══════╝     ╚═╝     ╚═╝  ╚═╝
+EOF
+  echo "${col0}"
+}
 alias ls="\ls --color"
-alias reload="source '$ELL_DIR/ell' && echo ✅"
 alias grep='grep --color=auto'
 alias tree='tree -C'
 
@@ -28,20 +40,6 @@ vi() {
     --cmd "colorscheme zaibatsu" \
     --cmd "set laststatus=2" \
     "$@"
-}
-
-hi() { 
-  clear
-  echo "${col1}"
-  cat<<'EOF'
-  ███████╗     ██╗     ██╗  ██╗
-  ██╔════╝     ██║     ╚██╗██╔╝
-  ███████╗     ██║      ╚███╔╝ 
-  ╚════██║     ██║      ██╔██╗ 
-  ███████║     ██║     ██╔╝ ██╗
-  ╚══════╝     ╚═╝     ╚═╝  ╚═╝
-EOF
-  echo "${col0}"
 }
 
 inst() {

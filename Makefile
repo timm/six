@@ -4,11 +4,11 @@ export PATH := $(CURDIR):$(PATH)
 
 help: ## show this help
 	@gawk 'BEGIN { FS=":.*?## ";c="\033[1;3"; r="\033[0m";            \
-		             printf "\n%s6mmake%s [%s3moptions%s]:\n\n",c,r,c,r} \
+		             printf "\n%s6mcd src; make%s [%s3moptions%s]:\n\n",c,r,c,r} \
          NF==2 && $$1~/^[a-z0-9A-Z_-]+/{                              \
 				         printf "  %s2m%-15s%s %s\n",c,$$1,r,$$2}' $(MAKEFILE_LIST)
 
-docs: ../docs/act.html
+docs: ../docs/act.html ../docs/binr.html ../docs/act.1.md ../docs/act_data.5.md ## make docs
 
 locs: ## print LOCS
 	cat ../src/act.lua \
@@ -35,13 +35,10 @@ pull: ## update from main
 push: ## commit to main
 	git commit -am saving;  git push; git status
 
-../docs/act.1.md :; pandoc -s -f man -t markdown ../docs/act.1 -o $@
+../docs/act.1.md      :; pandoc -s -f man -t markdown ../docs/act.1 -o $@
 ../docs/act_data.5.md :; pandoc -s -f man -t markdown ../docs/act_data.5 -o $@
 
-#../docs/%.pdf : pandoc -s -f man -t pdf act_data.5 -o act_data.pdf
-#pandoc -s -f man -t pdf act.1 -o act.pdf
-
-../docs/%.pdf: %.lua
+../docs/%.pdf: %.lua ## lua ==> pdf
 	echo "pdf-ing $@ ... "
 	a2ps                        \
 		--file-align=virtual       \

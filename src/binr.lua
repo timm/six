@@ -7,7 +7,9 @@ Options:
   -h             Show help.
   -e  era=10     Number of rows in an era
   -b  bins=7     Number of bins for discretization.
-  -l  lives=10   Number of lives.
+  -B  Budget=30  Max rows to eval.
+  -l  lives=5    Number of lives.
+  -r  repeats=20 Number of experimental repeats.
   -s  seed=42    Random number seed.
   -f  file=../data/auto93.csv  ]]
 
@@ -23,7 +25,7 @@ local DATA, NUM, SYM, COLS, clone, adds
 --## Lib
 
 local abs,exp,sqrt,log = math.abs, math.exp, math.sqrt, math.log
-local floor,max,rand,cos = math.floor,math.max, math.random, math.cos
+local floor,min,max,rand,cos = math.floor,math.min,math.max, math.random, math.cos
 
 local say=io.write
 local fmt = string.format
@@ -105,7 +107,7 @@ function COLS(row,    t,x,y,all)
 
 --## Methods
 
--- add(i,v) --> v ;; Update `i` with `v` (incrementing by `inc`).
+-- add(i,v) --> v ;; Update `i` with `v`.
 local function add(i,v)
   if v == "?" then return v end
   i.n = i.n + 1
@@ -155,7 +157,7 @@ local function scoreGet(data,row,    b,n)
     b = bin(col, row[col.at])
     if b ~= "?" then 
       if col.bins[b] then
-         n = n + col.bins[b].mu end end end
+         n = n + col.bins[b].mu  end end end
   return n end
       
 local function scorePut(data,row,     b,y)
@@ -167,33 +169,43 @@ local function scorePut(data,row,     b,y)
       add(col.bins[b], y) end end end
 
 local function scoreGuess(data,m,n,rows,    t)
-  t = {}
-  for n = (m or 1),(n or #rows) do 
+  t = {} 
+  --print((m or 1),min(#rows, n or #rows))
+  for n = (m or 1),min(#rows, n or #rows) do 
     if n <= #rows then
       t[1+#t] = {scoreGet(data, rows[n]), rows[n]} end end
   return sort(t, function(a,b) return a[1] < b[1] end) end
 
-local function score(data,lives,     seen,rows,bests,best,y)
-  seen = clone(data)
-  rows = shuffle(data.rows)
-  t={}; for m,row in pairs(rows) do t[1+#t] = disty(data,row) end; t=sort(t)
-  m=#t//10; print(fmt("%.2f, %.2f, %.2f, %.2f, %.2f", 
-                  t[m], t[3*m], t[5*m], t[7*m], t[9*m])) 
-  bests = {}
-  y0 = 1e32
-  lives = lives or 5
-  for m,row in pairs(rows) do
-    add(seen, row)
-    scorePut(seen, row)
+local function scoresSeen(data,      t,m,eps)
+  t={}; for m,row in pairs(data.rows) do t[1+#t] = disty(data,row) end
+  t=sort(t)
+  m=#t//10
+  eps = (t[9*m] - t[m])/2.56 * 0.35
+  print(fmt("%.2f, %.2f, %.2f, %.2f, %.2f; eps= %.2f", 
+                  t[m], t[3*m], t[5*m], t[7*m], t[9*m], eps)) 
+  return data,eps end
+
+local function score(data,eps,     labelled,rows,bestRow,besty,loves,best,y,lives,n)
+  labelled  = clone(data)
+  besty = 1e32
+  lives = lives or the.lives
+  seen  = {}
+  n=0;
+  for m,row in pairs(data.rows) do
+    if lives < 0 or n > the.Budget then break end  
+    add(labelled, row)
+    scorePut(labelled, row)
+    seen[row]=row; n=n+1
     if m % the.era==0 then 
-      bests[1 + #bests] = scoreGuess(seen, m+1, m+30, rows)[1][2]
-      best = distys(seen, bests)[1]
+      best = scoreGuess(labelled, m+1, m+20, data.rows)[1][2]
+      if not seen[best] then seen[best]=best; n=n+1 end
       y = disty(data, best)
-      print(m, fmt("%.2f",y), o(best)) 
-      if y >= y0 then lives = lives -1 end
-      if lives < 0 then break end
-      y0=y
-    end end end
+      if y < besty - eps
+      then besty,bestRow = y,best 
+      else lives = lives - 1 end end end 
+  --for _,x in pairs(labelled.cols.x) do
+    --print(" "); for k,b in pairs(x.bins) do print(x.of,k,b.mu,b.n) end end
+  return bestRow, besty,n end 
 
 --## Demos
 
@@ -218,13 +230,21 @@ egs["--data"] = function(_)
   for n,col in pairs(DATA(the.file).cols.x) do 
   print(n,o(col)) end end
 
-egs["--disty"]= function(_,    data,num)
+egs["--disty"]= function(_,    data,num,t)
   data,t = DATA(the.file), {}
   for n,row in pairs(data.rows) do
     if n % 25 == 0 then t[1+#t] = disty(data,row) end end 
   print(o(sort(t))) end 
 
-egs["--score"] = function(_) score(DATA(the.file),the.lives) end
+egs["--score"] = function(_,    t,data,eps,u,y) 
+                   data,eps = scoresSeen(DATA(the.file)) 
+                   t,u={},{}
+                   for n = 1,the.repeats do
+                     data.rows  = shuffle(data.rows)
+                     _,y,seen = score(data,eps) 
+                     u[n] = seen
+                     t[n] = 100*y//1 end
+                   print(o(sort(u)).."\n"..o(sort(t))) end 
 
 egs["--all"] = function(_,   n) 
                 n = the.seed
