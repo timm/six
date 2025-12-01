@@ -1,0 +1,34 @@
+#!/usr/bin/env gawk -f
+# lua2md - comments→markdown, code→details (except first block)
+BEGIN { first=1 }
+
+/^--/ {
+  if (code) {
+    print "```"
+    if (!first) print "</details>"
+    print ""
+    code=0 }
+  line = substr($0,4)
+  if (line ~ /-->.*;;/) {
+    split(line, a, ";;")
+    sig = a[1]; desc = a[2]
+    gsub(/^ +| +$/, "", sig)
+    gsub(/^ +| +$/, "", desc)
+    print "<b>" sig "</b><br>" desc
+  } else { print line }
+  next }
+
+/^[^-]/ {
+  if (!code) {
+    if (first) {
+      print "\n```lua"
+      first=0
+    } else {
+      print "\n<details><summary><b>Code</b></summary>\n\n```lua" }
+    code=1 }
+  print }
+
+END {
+  if (code) {
+    print "```"
+    if (!first) print "</details>" } }
