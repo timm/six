@@ -5,7 +5,7 @@ BEGIN { first=1 }
 /^--/ {
   if (code) {
     print "```"
-    if (!first) print "</details>"
+    #if (!first) print "</details>"
     print ""
     code=0 }
   line = substr($0,4)
@@ -24,11 +24,13 @@ BEGIN { first=1 }
       print "\n```lua"
       first=0
     } else {
-      print "\n<details><summary><b>Code</b></summary>\n\n```lua" }
+      #print "\n<details><summary><b>Code</b></summary>\n\n```lua" }
+      print "```lua" }
     code=1 }
   print }
 
 END {
   if (code) {
     print "```"
-    if (!first) print "</details>" } }
+    # if (!first) print "</details>" 
+  } }

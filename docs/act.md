@@ -12,12 +12,8 @@ Options:
   -s  seed=42    Random number seed.
   -f  file=../lua6/auto93.csv  ]]
 ```
-</details>
 
 <b>coerce(s) --> v</b><br>Return int or float or bool or string from `s`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function coerce(s) 
   if s then return tonumber(s) or s:match'^%s*(.-)%s*$' end end
@@ -25,51 +21,31 @@ local the={}; for k,v in help:gmatch("(%S+)=(%S+)") do the[k] = coerce(v) end
 math.randomseed(the.seed)
 local DATA, NUM, SYM, COLS, clone, adds
 ```
-</details>
 
 # Lib
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local abs,exp,sqrt,log = math.abs, math.exp, math.sqrt, math.log
 local max,rand,cos = math.max, math.random, math.cos
 local say=io.write
 local fmt = string.format
 ```
-</details>
 
 <b>sort(t,f) --> t</b><br>Sort `t` using function `f`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local sort = function(t,f) table.sort(t,f); return t end 
 ```
-</details>
 
 <b>lt(f) --> f</b><br>Return a function that sorts `a` and `b` on `f`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local lt = function(f) return function(a,b) return f(a) < f(b) end end
 ```
-</details>
 
 <b>cat(a) --> s</b><br>Return a string representation of array `a`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local cat = function(a) return "{".. table.concat(a," ") .."}" end
 ```
-</details>
 
 <b>o(v) --> s</b><br>Return a string representation of `v`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function o(v,     list,dict)
   list = function(a,     u) 
@@ -80,117 +56,73 @@ local function o(v,     list,dict)
   return type(v) == "number" and fmt(v%1==0 and "%.0f" or "%.3f", v) or
          type(v) ~= "table" and tostring(v) or (#v>0 and list or dict)(v,{}) end
 ```
-</details>
 
 <b>s2a(s) --> a</b><br>Return array of words from string `s`, split on ",".
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function s2a(s,   a)
   a={}; for s1 in s:gmatch"([^,]+)" do a[1+#a] = coerce(s1) end; return a end
 ```
-</details>
 
 <b>csv(file) --> f</b><br>Iterator that returns rows from `file`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function csv(file,    src)
   src = assert(io.open(file))
   return function(    s)
     s = src:read(); if s then return s2a(s) else src:close() end end end
 ```
-</details>
 
 <b>shuffle(t) --> t</b><br>Randomly shuffle the order of elements in `t`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local shuffle = function(t,    n)
 	for m=#t,2,-1 do n=math.random(m); t[m],t[n]=t[n],t[m] end; return t end
 ```
-</details>
 
 <b>cut(a0,n,data) --> t,t</b><br>Split `a0` at `n` (if `data` exists,split that too).
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function cut(a0,n,  data)
   local a1,a2 = {},{}
   for j,v in ipairs(a0) do if j <= n then a1[1+#a1]=v else a2[1+#a2]=v end end
   return data and clone(data,a1),clone(data,a2) or a1,a2 end
 ```
-</details>
 
 <b>mode(d) --> v</b><br>Return the most frequent key in `d`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function mode(d,   v,n)
   v,n = nil,0
   for v1,n1 in pairs(d) do if n1>n then v,n=v1,n1 end end
   return v end 
 ```
-</details>
 
 <b>box_muller(mu,sd) --> n</b><br>Return a random number from a Gaussian `mu`,`sd`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function box_muller(mu,sd) 
   return mu + sd * sqrt(-2 * log(rand())) * cos(6.28 * rand()) end
 ```
-</details>
 
 # Classes
 <b>DATA(src) --> DATA</b><br>Create a new DATA, populated with `src`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function DATA(  src) return adds(src, {n=0,rows={},cols=nil}) end
 ```
-</details>
 
 <b>clone(i,src) --> DATA</b><br>Return a new DATA with same structure as `i`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function clone(i,  src) return adds(src, DATA{i.cols.names}) end
 ```
-</details>
 
 <b>NUM(at,s) --> NUM</b><br>Create a NUM object to summarize numbers.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function NUM(at,s) 
   return {at=at or 0, of=s, n=0, mu=0, m2=0, sd=0,
           best=(tostring(s) or ""):find"+$" and 1 or 0} end
 ```
-</details>
 
 <b>SYM(at,s) --> SYM</b><br>Create a SYM object to summarize symbols.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function SYM(at,s) return {at=at, of=s, n=0, has={}} end
 ```
-</details>
 
 <b>COLS(row) --> COLS</b><br>Create a COLS object from a list of column names.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function COLS(row,    t,x,y,all,col)
   x,y,all = {},{},{}
@@ -202,13 +134,9 @@ function COLS(row,    t,x,y,all,col)
       t[1+#t] = col end end 
   return {all=all, x=x, y=y, names=row} end
 ```
-</details>
 
 # Methods
 <b>add(i,v,inc) --> v</b><br>Update `i` with `v` (incrementing by `inc`).
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function add(i,v,  inc)
   if v == "?" then return v end
@@ -228,21 +156,13 @@ local function add(i,v,  inc)
       if inc > 0 then i.rows[1 + #i.rows] = v end end end
   return v end  
 ```
-</details>
 
 <b>sub(i,v) --> v</b><br>Decrement `v` from `i`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function sub(i,v) return add(i,v,-1) end
 ```
-</details>
 
 <b>adds(src,it) --> it</b><br>Update `it` with all items from `src`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 function adds(src, it)
   it = it or NUM()
@@ -251,12 +171,8 @@ function adds(src, it)
   else for _,row in pairs(src or {}) do add(it,row) end end
   return it end
 ```
-</details>
 
 <b>mid(i) --> v|row</b><br>Return central tendency of `i`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function mid(i)--> a | v;; Exepcted value for `i`.
   if     i.mu   then return i.mu 
@@ -267,23 +183,15 @@ local function mid(i)--> a | v;; Exepcted value for `i`.
       i._mid = t end
     return i._mid end end
 ```
-</details>
 
 <b>norm(i,v) --> n</b><br>Normalize `v` 0..1 using `i`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function norm(i,v)
   return (i.has or v=="?") and v 
          or 1/(1 + math.exp(-1.7 * (v - i.mu)/(i.sd + 1e-32))) end
 ```
-</details>
 
 <b>aha(col,v1,v2) --> n</b><br>Return distance between `v1` and `v2`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function aha(col,v1,v2)
   if v1=="?" and v2=="?" then return 1 end
@@ -293,46 +201,30 @@ local function aha(col,v1,v2)
   v2 = v2 ~= "?" and v2 or (v1 > 0.5 and 0 or 1)
   return abs(v1 - v2) end
 ```
-</details>
 
 <b>distx(i,row1,row2) --> n</b><br>Return distance  `row1` to `row2` (using X cols).
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function distx(i,row1,row2,     d)
   d=0; for _,x in pairs(i.cols.x) do d= d + aha(x, row1[x.at],row2[x.at])^2 end
   return sqrt(d/#i.cols.x) end
 ```
-</details>
 
 <b>disty(i,row) --> n</b><br>Return distance of `row` to best goal (using Y cols).
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function disty(i,row,     d)
   d=0; for _,y in pairs(i.cols.y) do d= d + (norm(y, row[y.at]) - y.best)^2 end
   return sqrt(d/#i.cols.y)  end
 ```
-</details>
 
 <b>distys(i,rows) --> rows</b><br>Sort `rows` by their distance to heaven.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function distys(i,  rows,      y)
    y = function(row) return disty(i, row) end
    return sort(rows or i.rows, function(r1,r2) return y(r1) < y(r2) end) end
 ```
-</details>
 
 # Think
 <b>two(data) --> t</b><br>Incrementally cluster `data` into `best` and `rest`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function two(data) 
   local train,test,start,todo,seen,best,rest,d
@@ -352,12 +244,8 @@ local function two(data)
   return {best=best, rest=rest, seen=seen, test=test, 
           model = lt(function(row) return d(row,best) - d(row,rest) end)} end
 ```
-</details>
 
 # Demos
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local egs={}
 egs["-h"] = function(_) print("\n"..help.."\n") end
@@ -403,12 +291,8 @@ egs["--two"] = function(_,    data,out,t)
     t[1+#t] = (100*disty(out.seen, sort(out.test, out.model)[1]))//1 end 
   print(o(sort(t))) end
 ```
-</details>
 
 <b>cli(d,funs) --> nil</b><br>Update `d` with flags from command-line; run `funs`.
-
-<details><summary><b>Code</b></summary>
-
 ```lua
 local function cli(d,funs)
   for i,s in pairs(arg) do
@@ -418,4 +302,3 @@ local function cli(d,funs)
           if k:sub(1,1)==s:sub(2) then d[k]=coerce(arg[i+1]) end end end end end
 if arg[0]:find"two.lua" then cli(the,egs) end
 ```
-</details>
