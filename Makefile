@@ -22,6 +22,7 @@ locs: ## print LOCS
 					| sort -n | fmt -20
 
 ../docs/%.html : %.lua ../etc/brain.png ../etc/header.md ## lua to html
+	cp ../etc/brain.png ../docs/
 	mkdir -p ~/tmp
 	cat $<  | gawk 'BEGIN { FS=";;"} \
 	                NR==1 { system("cat ../etc/header.md") ; next }  \
