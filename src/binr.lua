@@ -145,12 +145,10 @@ local function scorePut(data,row,n,     b,y)
       add(col.bins[b], n) end end end
 
 -- scoreGuess(data,m,n,rows)-->t ;; sort rows[m] to rows[n] by their guesses
-local function scoreGuess(data,m,n,rows,    t)
+local function scoreGuess(data,rows,    t, top)
   t = {}
-  --print((m or 1),min(#rows, n or #rows))
-  for n = (m or 1),min(#rows, n or #rows) do
-    if n <= #rows then
-      t[1+#t] = {scoreGet(data, rows[n]), rows[n]} end end
+  for n,row in pairs(rows or data.rows) do
+    t[1+#t] = {scoreGet(data, row), row} end 
   return sort(t, function(a,b) return a[1] < b[1] end) end
 
 -- scoreSeen(data)-->data,n ;; collect and print stats for this data
@@ -164,28 +162,17 @@ local function scoresSeen(data,      t,m,eps)
   return data,eps end
 
 -- score(data,eps)--> row,n,n ;; Guess whata re good rows in data.
-local function score(data,eps)
-  local seen,labelled,rows,bestRow,besty,loves,best,y,lives,n
-  print""
-  labelled = clone(data)
-  besty = 1e32
-  lives = lives or the.lives
-  seen  = {}
-  n=0;
+local function score(data,eps,     labelled,besty,best,y)
+  besty, labelled = 1e32, clone(data)
   for m,row in pairs(data.rows) do
-    if lives < 0 or n >= the.Budget then break end
+    if m > the.Budget then break end
     add(labelled, row)
-    scorePut(labelled, row,disty(labelled,row))
-    seen[row]=row; n=n+1
+    scorePut(labelled, row, disty(labelled,row))
     if m % the.era==0 then
-      best = scoreGuess(labelled, 1, m+20, data.rows)[1][2]
-      if not seen[best] then seen[best]=best; n=n+1 end
-      y = disty(data, best)
-      if y < besty - eps
-      then besty,bestRow = y,best  ; say"!"
-      else lives = lives - 1       ; say"."
-      end end end
-  return bestRow, besty,n end 
+      best = scoreGuess(labelled)[1][2]
+      y = disty(labelled, best)
+      if y < besty - eps then besty,bestRow = y,best end end end
+  return bestRow, disty(data,bestRow) end 
 
 --## Demos
 
@@ -223,7 +210,7 @@ egs["--score"] = function(_,    t,data,eps,y)
                      data.rows  = shuffle(data.rows)
                      _,y,seen = score(data,eps)
                      t[n] = 100*y//1 end
-                   print("\n"..o(sort(t))) end
+                   print(o(sort(t))) end
 
 egs["--all"] = function(_,   n)
                 n = the.seed

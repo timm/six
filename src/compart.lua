@@ -74,7 +74,7 @@ local function sir()
       local remove = u.I*0.15               -- fix rate
       v.S = u.S - dt*infect                 -- susceptible -= infected
       v.I = u.I + dt*(infect-remove)        -- infected += new - fixed
-      v.R = u.R + dt*remove end) end        -- removed += fixed
+      v.R = u.R + dt*remove end) end        -- removed += fixed 
 
 -- Abdel-Hamid & Madnick (1991). Software Project Dynamics. Prentice-Hall
 -- Development with testing and rework feedback
@@ -153,7 +153,7 @@ local function defmap()
       v.DD = u.DD + dt*detect               -- detected += found
       v.RD = u.RD + dt*(escape-oper)        -- residual += escaped - found
       v.OD = u.OD + dt*oper                 -- operational += revealed
-      v.PC,v.DE,v.TE,v.OU = u.PC,u.DE,u.TE,u.OU end) end  -- aux unchanged
+      v.PC,v.DE,v.TE,v.OU = u.PC,u.DE,u.TE,u.OU end) end  -- aux unchanged 
 
 -- Copy a table (shallow)
 local function copy(t)
