@@ -1,5 +1,7 @@
 ---
 date: November 29, 2025
+footer: 1.0
+header: User Commands
 section: 1
 title: TWO.LUA
 ---
@@ -34,19 +36,19 @@ algorithm. They must be provided as key-value pairs or flags.
 
 :   Show the help message and exit.
 
-**-b*** bins*
+**-b** *bins*
 
 :   Set the number of bins for discretization.
 
     Default: 7
 
-**-e*** era*
+**-e** *era*
 
 :   Set the frequency (number of rows) at which the model updates.
 
     Default: 30
 
-**-f*** file*
+**-f** *file*
 
 :   Specify the path to the input CSV file. The file should contain a
     header row. Columns starting with uppercase letters are treated as
@@ -56,13 +58,13 @@ algorithm. They must be provided as key-value pairs or flags.
 
     Default: ../lua6/auto93.csv
 
-**-r*** ruleMax*
+**-r** *ruleMax*
 
 :   Set the maximum number of conditions allowed in a rule.
 
     Default: 3
 
-**-s*** seed*
+**-s** *seed*
 
 :   Set the random number generator seed for reproducibility.
 

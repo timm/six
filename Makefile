@@ -15,10 +15,10 @@ locs: ## print LOCS
 	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }'  ../src/*.lua \
 					| sort -n | fmt -20
 
-../docs/%.html : %.lua ../docs/brain.png ../docs/header.md ## lua to html
+../docs/%.html : %.lua ../etc/brain.png ../etc/header.md ## lua to html
 	mkdir -p ~/tmp
 	cat $<  | gawk 'BEGIN { FS=";;"} \
-	                NR==1 { system("cat ../docs/header.md") ; next }  \
+	                NR==1 { system("cat ../etc/header.md") ; next }  \
 	                NF==2 && sub(/^-- /,"",$$1) {$$0= "-- <b>"$$1"</b><br>"$$2} \
 	                1 ' > ~/tmp/$< 
 	pycco -d  ../docs ~/tmp/$<
@@ -34,8 +34,8 @@ pull: ## update from main
 push: ## commit to main
 	git commit -am saving;  git push; git status
 
-../docs/act.1.md      :; pandoc -s -f man -t markdown ../docs/act.1 -o $@
-../docs/act_data.5.md :; pandoc -s -f man -t markdown ../docs/act_data.5 -o $@
+../docs/act.1.md      :; pandoc -s -f man -t markdown ../src/act.1 -o $@
+../docs/act_data.5.md :; pandoc -s -f man -t markdown ../src/act_data.5 -o $@
 
 ../docs/%.pdf: %.lua ## lua ==> pdf
 	echo "pdf-ing $@ ... "
@@ -44,7 +44,7 @@ push: ## commit to main
 		--line-numbers=1            \
 		--pro=color                  \
 		--lines-per-page=120          \
-		--pretty=../sh/lua.ssh         \
+		--pretty=../etc/lua.ssh         \
 		--left-title=""                 \
 		--borders=no                     \
 	  --right-footer="page %s. of %s#"  \
