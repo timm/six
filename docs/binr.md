@@ -9,7 +9,6 @@ Options:
   -e  era=10     Number of rows in an era
   -b  bins=7     Number of bins for discretization.
   -B  Budget=30  Max rows to eval.
-  -l  lives=5    Number of lives.
   -r  repeats=20 Number of experimental repeats.
   -s  seed=42    Random number seed.
   -f  file=../data/auto93.csv  ]]
@@ -24,10 +23,11 @@ math.randomseed(the.seed)
 local DATA, NUM, SYM, COLS, clone, adds
 ```
 
+-----------------------------------------------------------------------------
 # Lib
 ```lua
 local abs,exp,sqrt,log = math.abs, math.exp, math.sqrt, math.log
-local floor,min,max,rand,cos = math.floor,math.min,math.max, math.random, math.cos
+local floor,min,max,rand,cos= math.floor,math.min,math.max, math.random,math.cos
 local say,fmt = io.write, string.format
 ```
 
@@ -73,25 +73,26 @@ local function box_muller(mu,sd)
   return mu + sd * sqrt(-2 * log(rand())) * cos(2 * math.pi * rand()) end
 ```
 
+-----------------------------------------------------------------------------
 # Classes
-<b>DATA(src:s|t) --> DATA</b><br>Create a new DATA, populated with `src`.
+<b>DATA(  ?src : s|t) --> DATA</b><br>Create a new DATA, populated with `src`.
 ```lua
 function DATA(  src) return adds(src, {n=0,rows={},cols=nil}) end
 ```
 
-<b>clone(data,src) --> DATA</b><br>Return a new DATA with same structure as `data`.
+<b>clone(data, ?src:s|t) --> DATA</b><br>Return a new DATA, copy `data`'s structure.
 ```lua
 function clone(data,  src) return adds(src, DATA{data.cols.names}) end
 ```
 
-<b>NUM(at=0,v="") --> NUM</b><br>Create a NUM object to summarize numbers.
+<b>NUM(  at=0,v="") --> NUM</b><br>Create a NUM object to summarize numbers.
 ```lua
 function NUM(at,v)
   return {at=at or 0, of=v or "", n=0, mu=0, m2=0, sd=0, bins={},
           best=(tostring(v) or ""):find"+$" and 1 or 0} end
 ```
 
-<b>SYM(at=0,v="") --> SYM</b><br>Create a SYM object to summarize symbols.
+<b>SYM(  at=0,v="") --> SYM</b><br>Create a SYM object to summarize symbols.
 ```lua
 function SYM(at,v) return {at=at, of=v, n=0, has={}, bins={}} end
 ```
@@ -105,7 +106,8 @@ function COLS(row,    t,x,y,all)
     if not s:match"X$" then
       t = s:find"[+-]$" and y or x
       t[1+#t] = all[n] end end
-  return {all=all, x=x, y=y, names=row} end
+  return {all=all, x=x, y=y, names=row} end
+-- -----------------------------------------------------------------------------
 ```
 
 # Methods
@@ -140,7 +142,7 @@ function adds(src, it)
 <b>norm(num,v) --> n</b><br>Normalize `v` 0..1 using `i`.
 ```lua
 local function norm(num,v)
-  return  1 / (1 + math.exp(-1.702 * (v - num.mu)/(num.sd + 1e-32))) end
+  return 1 / (1 + math.exp(-1.702 * (v - num.mu)/(num.sd + 1e-32))) end
 ```
 
 <b>bin(col,v) --> n</b><br>Normalize `v` 0..bins-1 using `i`.
@@ -156,8 +158,9 @@ local function disty(data,row,     d)
   return sqrt(d/#data.cols.y)  end
 ```
 
+-----------------------------------------------------------------------------
 # Think
-scoreGet(data,row) -> n ;; Score row by sum score of the bins it uses.
+scoreGet(data,row) -> n;; Score row by sum score of the bins it uses.
 ```lua
 local function scoreGet(data,row,    b,n)
   n = 0
@@ -169,7 +172,7 @@ local function scoreGet(data,row,    b,n)
   return n end
 ```
 
-scoreGet(data,row,n) -> nil ;; Add a score `n` to each bin used by this row.
+scoreGet(data,row,n) -> nil;; Add a score `n` to each bin used by this row.
 ```lua
 local function scorePut(data,row,n,     b,y)
   for _,col in pairs(data.cols.x) do
@@ -179,14 +182,15 @@ local function scorePut(data,row,n,     b,y)
       add(col.bins[b], n) end end end
 ```
 
-<b>scoreGuess(data,m,n,rows)-->t</b><br>sort rows[m] to rows[n] by their guesses
+<b>scoreGuess(data,m,n,rows) --> t</b><br>sort rows[m] to rows[n] by their guesses
 ```lua
-local function scoreGuess(data,m,n,rows,    t)
+local function scoreGuess(data,rows,m,n,    t, top)
   t = {}
-  --print((m or 1),min(#rows, n or #rows))
-  for n = (m or 1),min(#rows, n or #rows) do
-    if n <= #rows then
-      t[1+#t] = {scoreGet(data, rows[n]), rows[n]} end end
+  m = m or 1
+  n = n or #rows
+  for j = m,n do
+    row = rows[j]
+    t[1+#t] = {scoreGet(data, row), row} end 
   return sort(t, function(a,b) return a[1] < b[1] end) end
 ```
 
@@ -204,28 +208,18 @@ local function scoresSeen(data,      t,m,eps)
 
 <b>score(data,eps)--> row,n,n</b><br>Guess whata re good rows in data.
 ```lua
-local function score(data,eps)
-  local seen,labelled,rows,bestRow,besty,loves,best,y,lives,n
-  print""
-  labelled = clone(data)
-  besty = 1e32
-  lives = lives or the.lives
-  seen  = {}
-  n=0;
+local function score(data,eps,     labelled,besty,best,y,n,out)
+  besty, labelled = 1e32, clone(data)
   for m,row in pairs(data.rows) do
-    if lives < 0 or n >= the.Budget then break end
+    if m > the.Budget then break end
     add(labelled, row)
-    scorePut(labelled, row,disty(labelled,row))
-    seen[row]=row; n=n+1
+    scorePut(labelled, row, disty(labelled,row))
     if m % the.era==0 then
-      best = scoreGuess(labelled, 1, m+20, data.rows)[1][2]
-      if not seen[best] then seen[best]=best; n=n+1 end
-      y = disty(data, best)
-      if y < besty - eps
-      then besty,bestRow = y,best  ; say"!"
-      else lives = lives - 1       ; say"."
-      end end end
-  return bestRow, besty,n end 
+      best = scoreGuess(labelled,labelled.rows)[1][2]
+      y = disty(labelled, best)
+      if y < besty - eps then besty,bestRow = y,best end end end
+  return best, disty(data, best) end
+-- -----------------------------------------------------------------------------
 ```
 
 # Demos
@@ -240,7 +234,7 @@ egs["--csv"] = function(_,    n)
          if n % 25 == 0 then print(o(row)) end
          n = n + 1 end end
 egs["--num"] = function(_,num)
-  num=NUM()
+  num = NUM()
   for _=1,1000 do add(num, box_muller(10,5)) end
   print(fmt("%.3f %.3f", num.mu, num.sd)) end
 egs["--data"] = function(_)
@@ -258,7 +252,7 @@ egs["--score"] = function(_,    t,data,eps,y)
                      data.rows  = shuffle(data.rows)
                      _,y,seen = score(data,eps)
                      t[n] = 100*y//1 end
-                   print("\n"..o(sort(t))) end
+                   print(o(sort(t))) end
 egs["--all"] = function(_,   n)
                 n = the.seed
                 for k,_ in pairs(egs) do

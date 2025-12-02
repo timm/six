@@ -30,7 +30,6 @@ locs: ## print LOCS
 	                1 ' > ~/tmp/$< 
 	pycco -d  ../docs ~/tmp/$<
 	echo "p {text-align:right;}" >> ../docs/pycco.css
-	echo "h2 {padding-top: 3px; border-top: 1px solid #000;}" >> ../docs/pycco.css
 
 sh: ## run a customized shell
 	../sh/ell
