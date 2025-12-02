@@ -118,7 +118,7 @@ local function norm(num,v)
 
 -- bin(col,v) --> n;; Normalize `v` 0..bins-1 using `i`.
 local function bin(col,v)
-  return (col.has or v=="?") and v or floor( the.bins * norm(col,v)) end
+  return v~="?" and col.mu and floor(the.bins * norm(col,v)) or v end
 
 -- disty(data,row) --> n;; Return distance of `row` to best goal (using Y cols).
 local function disty(data,row,     d)
@@ -147,7 +147,7 @@ local function scorePut(data,row,n,     b,y)
       add(col.bins[b], n) end end end
 
 -- scoreGuess(data,m,n,rows) --> t;; sort rows[m] to rows[n] by their guesses
-local function scoreGuess(data,rows,m,n,    t, top)
+local function scoreGuess(data,rows,m,n,    t, top,row)
   t = {}
   m = m or 1
   n = n or #rows
@@ -167,7 +167,7 @@ local function scoresSeen(data,      t,m,eps)
   return data,eps end
 
 -- score(data,eps)--> row,n,n;; Guess whata re good rows in data.
-local function score(data,eps,     labelled,besty,best,y,n,out)
+local function score(data,eps,     labelled,besty,best,y,n)
   besty, labelled = 1e32, clone(data)
   for m,row in pairs(data.rows) do
     if m > the.Budget then break end
@@ -214,7 +214,7 @@ egs["--score"] = function(_,    t,data,eps,y)
                    t={}
                    for n = 1,the.repeats do
                      data.rows  = shuffle(data.rows)
-                     _,y,seen = score(data,eps)
+                     _,y = score(data,eps)
                      t[n] = 100*y//1 end
                    print(o(sort(t))) end
 
