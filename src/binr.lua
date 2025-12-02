@@ -145,9 +145,12 @@ local function scorePut(data,row,n,     b,y)
       add(col.bins[b], n) end end end
 
 -- scoreGuess(data,m,n,rows)-->t ;; sort rows[m] to rows[n] by their guesses
-local function scoreGuess(data,rows,    t, top)
+local function scoreGuess(data,rows,m,n,    t, top)
   t = {}
-  for n,row in pairs(rows or data.rows) do
+  m = m or 1
+  n = n or #rows
+  for j = m,n do
+    row = rows[j]
     t[1+#t] = {scoreGet(data, row), row} end 
   return sort(t, function(a,b) return a[1] < b[1] end) end
 
@@ -162,17 +165,17 @@ local function scoresSeen(data,      t,m,eps)
   return data,eps end
 
 -- score(data,eps)--> row,n,n ;; Guess whata re good rows in data.
-local function score(data,eps,     labelled,besty,best,y)
+local function score(data,eps,     labelled,besty,best,y,n,out)
   besty, labelled = 1e32, clone(data)
   for m,row in pairs(data.rows) do
     if m > the.Budget then break end
     add(labelled, row)
     scorePut(labelled, row, disty(labelled,row))
     if m % the.era==0 then
-      best = scoreGuess(labelled)[1][2]
+      best = scoreGuess(labelled,labelled.rows)[1][2]
       y = disty(labelled, best)
       if y < besty - eps then besty,bestRow = y,best end end end
-  return bestRow, disty(data,bestRow) end 
+  return best, disty(data, best) end 
 
 --## Demos
 
