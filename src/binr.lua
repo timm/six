@@ -123,7 +123,7 @@ local function bin(col,v)
 -- disty(data,row) --> n;; Return distance of `row` to best goal (using Y cols).
 local function disty(data,row,     d)
   d=0; for _,y in pairs(data.cols.y) do d=d + (norm(y,row[y.at]) - y.best)^2 end
-  return sqrt(d/#data.cols.y)  end
+  return sqrt(d/#data.cols.y) end
 
 -- -----------------------------------------------------------------------------
 --## Think

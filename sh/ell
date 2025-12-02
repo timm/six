@@ -37,7 +37,7 @@ vi() {
     --cmd "set expandtab tabstop=2 shiftwidth=2 splitright splitbelow" \
     --cmd "set undofile undodir=~/.vim/undo" \
     --cmd "nnoremap Q :quitall<CR>" \
-    --cmd "colorscheme zaibatsu" \
+    --cmd "colorscheme sorbet" \
     --cmd "set laststatus=2" \
     "$@"
 }
