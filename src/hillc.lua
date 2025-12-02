@@ -20,18 +20,17 @@ local function _climb1(data,stop,rows,     A,B,c,t)
 local function climb(data,stop,rows)
   return _climb(data,stop or 10, rows or data.rows) end
 
-local function anywhere(a) return rand(#a)//1 end
+local function any(a) return rand(#a)//1 end
 
-local function mutate(x,y,z,   u,keep,ok,tmp)
-  u,keep = {},anywhere(x)
+local function _mutate(out,keep,x,y,z)
   for k=1,#x do 
-    u[k] = x[k]
+    out[k] = x[k]
     if k ~= keep and rand() < the.cf then 
-      ok, tmp = pcall(function() return x[k] * the.f*(y[k] - z[k]) end)
-      u[k] = ok and tmp or (rand() < 0.5 and y[k] or z[k]) end 
-  return u end
+      local ok, tmp = pcall(function() return x[k] * the.f*(y[k] - z[k]) end)
+      out[k] = ok and tmp or (rand() < 0.5 and y[k] or z[k]) end end
+  return out end
 
-local function mutates(a,n,    u)
-  u={}; 
-  for k=1,n do u[k] = mutate(a[anywhere(a)], a[anywhere(a)], a[anywhere(a)]) end 
-  return u end
+local function mutates(a,n,    out)
+  out = {}; 
+  for k=1,n do out[k] = _mutate({}, any(a), a[any(a)], a[any(a)], a[any(a)]) end 
+  return out end
