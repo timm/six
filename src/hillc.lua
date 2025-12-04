@@ -18,8 +18,22 @@ local function climb(model0,    seen,model1,xs,y)
     if (y - seen.mu)/seen.sd < -1 then d.add(model1, xs) end end 
  return model1,seen end 
 
+local function rsearch(model0,    seen,model1,xs,y)
+  seen, model1 = d.NUM(), d.clone(model0)
+  best = 1e32
+  for j=1,1000 do 
+    xs = d.sample(model0) 
+    y = add(seen, f(xs))
+    if y < best then best,out=y,xs end end
+ return best,out end 
+
 -- ----------------------------------------------------------------------------
 local eg={}
+
+eg["--rsearch"] = function(s,     best,score)
+  math.randomseed(s or 42)
+  best, score = rsearch(MODEL())
+  print(best) end
 
 eg["--climb"] = function(s,      model,seen)
   math.randomseed(s or 42)
