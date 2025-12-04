@@ -13,13 +13,13 @@
 
 # Six
 
-* [Basics](docs/data.md)
+* [Basics](src/data.md)
 
 Here is the combined list of canonical algorithms in the optimization and Search-Based Software Engineering (SBSE) space, sorted chronologically by their introduction and rise to prominence:
 
-* [**Random Search (1950s):**](docs/hillc.md) The essential baseline "sanity check" to prove complex methods are actually adding value.
-* [**Hill Climbing (1950s):**](docs/hillc.md)  The fundamental local search strategy that iteratively moves to better neighbors.
-* [**Tabu Search (1986):**](docs/tabu.md) A metaheuristic using memory structures (forbidden lists) to force exploration and avoid cycling.
+* [**Random Search (1950s):**](src/hillc.md) The essential baseline "sanity check" to prove complex methods are actually adding value.
+* [**Hill Climbing (1950s):**](src/hillc.md)  The fundamental local search strategy that iteratively moves to better neighbors.
+* [**Tabu Search (1986):**](src/tabu.md) A metaheuristic using memory structures (forbidden lists) to force exploration and avoid cycling.
 * **Genetic Programming / GP (1992):** Evolves actual parse trees or source code (e.g., automated bug fixing) rather than parameter vectors.
 * **Genetic Algorithms / GA (1975):** The grandfather of evolutionary computation, using selection, crossover, and mutation on bitstrings.
 * **Simulated Annealing / SA (1983):** A probabilistic technique using "temperature" to accept worse solutions early on to escape local optima.
