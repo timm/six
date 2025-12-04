@@ -13,15 +13,16 @@
 
 # Six
 
+* [Basics](docs/data.md)
 
 Here is the combined list of canonical algorithms in the optimization and Search-Based Software Engineering (SBSE) space, sorted chronologically by their introduction and rise to prominence:
 
-* **Random Search (1950s):** The essential baseline "sanity check" to prove complex methods are actually adding value.
-* **Hill Climbing (1950s):** The fundamental local search strategy that iteratively moves to better neighbors.
+* [**Random Search (1950s):**](docs/hillc.md) The essential baseline "sanity check" to prove complex methods are actually adding value.
+* [**Hill Climbing (1950s):**](docs/hillc.md)  The fundamental local search strategy that iteratively moves to better neighbors.
+* [**Tabu Search (1986):**](docs/tabu.md) A metaheuristic using memory structures (forbidden lists) to force exploration and avoid cycling.
+* **Genetic Programming / GP (1992):** Evolves actual parse trees or source code (e.g., automated bug fixing) rather than parameter vectors.
 * **Genetic Algorithms / GA (1975):** The grandfather of evolutionary computation, using selection, crossover, and mutation on bitstrings.
 * **Simulated Annealing / SA (1983):** A probabilistic technique using "temperature" to accept worse solutions early on to escape local optima.
-* **Tabu Search (1986):** A metaheuristic using memory structures (forbidden lists) to force exploration and avoid cycling.
-* **Genetic Programming / GP (1992):** Evolves actual parse trees or source code (e.g., automated bug fixing) rather than parameter vectors.
 * **Ant Colony Optimization / ACO (1992):** Uses pheromone trails to solve path-based problems like test sequence generation.
 * **Particle Swarm Optimization / PSO (1995):** Simulates flocking behavior (birds/fish) to move candidates through continuous search spaces.
 * **MaxWalkSat (1996):** A stochastic local search algorithm combining greedy moves with random walks, essential for SAT solving.
