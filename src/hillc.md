@@ -11,18 +11,28 @@ Learning goals
 
 ## 1) High-level idea (one-paragraph)
 
-We want to find inputs x that make an objective f(x) small (or large). Random search draws many candidates at random and remembers the best. Hill-climbing here uses a short loop: draw many candidates from a current proposal distribution, keep the best few (the "elite" set), and fit the next proposal to those elites. Repeating this concentrates the proposal where good solutions live. That simple loop is the Cross-Entropy Method (CEM) / estimation-of-distribution approach in one dimension.
+We want to find inputs x that make an objective f(x) small (or large). 
+
+Random search draws many candidates at random and remembers the best.
+
+ Hill-climbing here uses a short loop: 
+ 
+ - draw many candidates from a current proposal distribution...
+ - ... keep the best few (the "elite" set), and fit the next proposal to those elites.
+ -  repeating this concentrates the proposal where good solutions live. 
+ 
+ (Aside that   simple loop is the Cross-Entropy Method (CEM) / estimation-of-distribution approach .)
 
 
 ## 2) Minimal CEM sampler (put this at the top of any lecture)
-This tiny pseudocode shows the whole algorithm in plain steps.
+This tiny pseudocode shows the whole algorithm in plain steps. This code only handles the very simple case of a model with one variable.
 
 ```
 μ := initial mean
 σ2 := initial variance
 repeat until convergence or max iterations:
   X := draw N samples from Normal(μ, σ2)
-  score each x in X with S(x) = objective(x)
+  score each x in X with f(x) = objective(x)
   elites := top Ne points from X by score
   μ := mean(elites)
   σ2 := variance(elites)  (use small floor if zero)
@@ -31,6 +41,17 @@ return μ  -- mean of final distribution (best guess)
 ```
 
 One-line intuition: "sample many → keep best → refit → repeat."
+
+
+ Small annotated example: one iteration (concrete numbers)
+
+- Start μ = -6, σ2 = 100, N = 100, Ne = 10.
+- Draw 100 samples from Normal(-6, 100).
+- Evaluate f(x) for each sample (higher S better).
+- Sort and keep top 10 samples.
+- Compute μ_elite = mean(top 10), σ2_elite = var(top 10).
+- Update μ := μ_elite, σ2 := σ2_elite (or smooth).
+- Repeat.
 
 
 ## 3) hillc.lua: objective and model (short fragments)
@@ -112,17 +133,6 @@ How this maps to CEM:
 - Use smoothing: mu := α*mu_elite + (1-α)*mu_old with α ∈ (0,1] to slow changes and reduce noise.
 - Prefer explicit elite selection (collect batch → sort → take top Ne) rather than an online z-score if you want reproducible selection.
 - Guard against seen.sd == 0 before dividing (skip selection until seen.n ≥ 2, or use eps).
-
-
-## 7) Small annotated example: one iteration (concrete numbers)
-
-- Start μ = -6, σ2 = 100, N = 100, Ne = 10.
-- Draw 100 samples from Normal(-6, 100).
-- Evaluate S(x) for each sample (higher S better).
-- Sort and keep top 10 samples.
-- Compute μ_elite = mean(top 10), σ2_elite = var(top 10).
-- Update μ := μ_elite, σ2 := σ2_elite (or smooth).
-- Repeat.
 
 
 ## 10) Summary

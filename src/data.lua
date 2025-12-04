@@ -5,25 +5,32 @@ local pi,cos,log,rand = math.pi,math.cos,math.log,math.random
 local fmt = string.format
 
 -- ----------------------------------------------------------------------------
+-- TRI(lo=0, mid=0.5, hi=1) --> TRI
 local function TRI(lo,mid,hi)
   return {it=TRI,n=0, lo=lo or 0, mid=mid or 0.5, hi=hi or 1} end
 
+-- NUM(mu=0, sd=0) --> NUM
 local function NUM(mu,sd) 
-  return {it=NUM, n=0, mu=mu or 0, m2=0, sd=sd or 0,
-          best=(s or ""):find"-$" and 0 or 1} end
+  return {it=NUM, n=0, mu=mu or 0, m2=0, sd=sd or 0} end
 
+-- SYM(has={}) -- SYM 
 local function SYM(has,    n)
   n=0; for _,n1 in pairs(has or {}) do n = n + n1 end
   return {it=SYM, n=n, has=has or {} } end
 
+-- COL = NUM | SYM | TRI
+-- DATA(t : list[ COL ]) --> DATA
 local function DATA(t) 
-  return {it=DATA, cols=t;n=0} end
+  return {it=DATA, cols=t; n=0} end
 
+-- DATA(data: DATA) --> DATA
 local function clone(data,    t)
   t={}; for j,col in pairs(data.cols) do t[j]=col.it() end; return DATA(t) end
 
 -- ----------------------------------------------------------------------------
-function add(i, v)
+-- val = number | string | "?" 
+-- add(i:COL, v: val | list[val]) --> v
+local function add(i, v)
   if v == "?" then return v end
   i.n = i.n + 1
   if i.it == NUM then
@@ -31,18 +38,23 @@ function add(i, v)
     i.mu = i.mu + d / i.n
     i.m2 = i.m2 + d * (v - i.mu)
     i.sd = (i.n < 2 or i.m2 < 0) and 0 or (i.m2 / (i.n - 1))^0.5
+
   elseif i.it == SYM then
     i.has[v] = (i.has[v] or 0) + 1 
-  else 
+
+  elseif i.it == DATA then
     for j,col in pairs(i.cols) do add(col,v[j]) end end
   return v end
 
+-- sample(i:COL) --> val | list[val]
 local function sample(i)
   if i.it==TRI then
     local u, v, p = rand(), rand(), (i.mid - i.lo) / (i.hi - i.lo)
     return i.lo + (i.hi - i.lo) * (min(u, v) + p * abs(u - v))
+
   elseif i.it==NUM then
     return i.sd==0 and i.mu or i.mu+i.sd*(-2*log(rand()))^0.5 * cos(2*pi*rand())
+
   elseif i.it==SYM then
     local most,mode,r = -1, nil, rand() * i.n
     for x, count in pairs(i.has) do
@@ -50,6 +62,7 @@ local function sample(i)
       if r <= 0 then return x end 
       if count > most then mode,most = x,count end end
     return mode 
+
   else 
     local u={}; for k,v in pairs(i.cols) do u[k]=sample(v)end; return u end end 
 

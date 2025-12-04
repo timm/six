@@ -1,9 +1,6 @@
 # Quick overview (expanded): data.lua — full theory mapped to code
 
-This file lists each theoretical point you asked for and shows where
-the idea appears in src/data.lua, with short explanations and
-small code snippets taken from that file. Headings have one blank
-line after them and every code block has a blank line above it.
+ 
 
 1) Lua language essentials: syntax, locals vs globals, functions as
    first-class values, tables as arrays/records, pairs/ipairs
