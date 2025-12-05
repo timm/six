@@ -31,11 +31,19 @@ local say,fmt = io.write, string.format
 -- sort(a,f) --> a;; Sort `a` using function `f`.
 local sort = function(a,f) table.sort(a,f); return a end
 
+local lt = function(k) return function(a,b) return a[k] < b[k] end end
+
+local function keysort(t, f,    u,j)
+  j,u = 0,{}
+  for k in pairs(t) do u[#u+1] = k end
+  sort(u, f)
+  return function() j = j + 1; return u[j], t[u[j]] end end
+
 -- o(v|t) --> s;; Return a string representation of `v`.
 local function o(v,     list,dict)
   list=function(a,u) for _,v in ipairs(a) do u[1+#u]=o(v) end; return u end
-  dict=function(d,u)
-     for k,v in pairs(d) do u[1+#u]=fmt(":%s %s",k,o(v)) end; return sort(u) end
+  dict=function(d,u) for k,v in keysort(d) do 
+        if k~="it" then u[1+#u]=fmt(":%s %s",k,o(v)) end end; return sort(u) end 
   return type(v) == "number" and fmt(v%1==0 and "%.0f" or "%.3f", v) or
          type(v) ~= "table" and tostring(v) or
          "{".. table.concat((#v>0 and list or dict)(v,{}), " ") .."}" end
@@ -62,18 +70,21 @@ local function box_muller(mu,sd)
 --## Classes
 
 -- DATA(  ?src : s|t) --> DATA;; Create a new DATA, populated with `src`.
-function DATA(  src) return adds(src, {n=0,rows={},cols=nil}) end
+function DATA(  src) 
+  return adds(src, {it=DATA, n=0,rows={},cols=nil}) end
 
 -- clone(data, ?src:s|t) --> DATA;; Return a new DATA, copy `data`'s structure.
-function clone(data,  src) return adds(src, DATA{data.cols.names}) end
+function clone(data,  src) 
+  return adds(src, DATA{data.cols.names}) end
 
 -- NUM(  at=0,v="") --> NUM;; Create a NUM object to summarize numbers.
 function NUM(at,v)
-  return {at=at or 0, of=v or "", n=0, mu=0, m2=0, sd=0, bins={},
+  return {it=NUM, at=at or 0, of=v or "", n=0, mu=0, m2=0, sd=0, bins={},
           best=(tostring(v) or ""):find"+$" and 1 or 0} end
 
 -- SYM(  at=0,v="") --> SYM;; Create a SYM object to summarize symbols.
-function SYM(at,v) return {at=at, of=v, n=0, has={}, bins={}} end
+function SYM(at,v) 
+  return {it=SYM, at=at, of=v, n=0, has={}, bins={}} end
 
 -- COLS(row) --> COLS;; Create a COLS object from a list of column names.
 function COLS(row,    t,x,y,all)
@@ -83,7 +94,7 @@ function COLS(row,    t,x,y,all)
     if not s:match"X$" then
       t = s:find"[+-]$" and y or x
       t[1+#t] = all[n] end end
-  return {all=all, x=x, y=y, names=row} end
+  return {it=COLS, all=all, x=x, y=y, names=row} end
 
 -- -----------------------------------------------------------------------------
 --## Methods
@@ -92,13 +103,14 @@ function COLS(row,    t,x,y,all)
 local function add(i,z)
   if z == "?" then return z end
   i.n = i.n + 1
-  if i.has then i.has[z] = 1 + (i.has[z] or 0)
-  elseif i.mu then
+  if SYM == i.it then 
+    i.has[z] = 1 + (i.has[z] or 0)
+  elseif NUM == i.it then
     local d = z - i.mu
     i.mu = i.mu + d / i.n
     i.m2 = i.m2 + d * (z - i.mu)
     i.sd = i.n<2 and 0 or sqrt((max(0,i.m2)/(i.n - 1)))
-  elseif i.rows then
+  elseif DATA == i.it then
     if not i.cols then i.cols = COLS(z) else
       for _,col in pairs(i.cols.all) do add(col, z[col.at]) end
       i.rows[1 + #i.rows] = z end end
@@ -118,7 +130,7 @@ local function norm(num,v)
 
 -- bin(col,v) --> n;; Normalize `v` 0..bins-1 using `i`.
 local function bin(col,v)
-  return v~="?" and col.mu and floor(the.bins * norm(col,v)) or v end
+  return v~="?" and NUM==col.it and floor(the.bins * norm(col,v)) or v end
 
 -- disty(data,row) --> n;; Return distance of `row` to best goal (using Y cols).
 local function disty(data,row,     d)
@@ -166,18 +178,34 @@ local function scoresSeen(data,      t,m,eps)
                   t[m], t[3*m], t[5*m], t[7*m], t[9*m], eps))
   return data,eps end
 
+function worth(num)        return num.mu + num.sd/sqrt(num.n) end
+function worths(num1,num2) return worth(num1) < worth(num2) end
+
+local function status(xs,     u)
+  print" "
+  u={}; for _,x in pairs(xs) do
+          for _,num in pairs(x.bins) do  u[1+#u] = num end end
+  for _,num in pairs(sort(u, worths)) do
+    print(o{c=num.at, b=num.of, mu=num.mu, sd=num.sd, w=worth(num)}) end end
+
 -- score(data,eps)--> row,n,n;; Guess whata re good rows in data.
-local function score(data,eps,     labelled,besty,best,y,n)
+local function score(data,eps,     labelled,besty,best,y,n,seen)
   besty, labelled = 1e32, clone(data)
+  n,seen = 0,{}
   for m,row in pairs(data.rows) do
     if m > the.Budget then break end
     add(labelled, row)
     scorePut(labelled, row, disty(labelled,row))
+    if not seen[row] then n=n+1 end
+    seen[row] = n
     if m % the.era==0 then
-      best = scoreGuess(labelled,labelled.rows)[1][2]
+      status(labelled.cols.x)
+      best = scoreGuess(labelled,data.rows,1,m+20)[1][2]
+      if not seen[best] then n=n+1 end
+      seen[best]=n
       y = disty(labelled, best)
       if y < besty - eps then besty,bestRow = y,best end end end
-  return best, disty(data, best) end
+  return best, disty(data, best),n end
 
 -- -----------------------------------------------------------------------------
 --## Demos
@@ -210,17 +238,19 @@ egs["--disty"]= function(_,    data,num,t)
   print(o(sort(t))) end
 
 egs["--score"] = function(_,    t,data,eps,y)
+                   t,u = {},{}
                    data,eps = scoresSeen(DATA(the.file))
-                   t={}
                    for n = 1,the.repeats do
                      data.rows  = shuffle(data.rows)
-                     _,y = score(data,eps)
+                     _,y,seen = score(data,eps)
+                     u[n] = seen
                      t[n] = 100*y//1 end
-                   print(o(sort(t))) end
+                   print(o(sort(t)))
+                   print(o(sort(u))) end
 
 egs["--all"] = function(_,   n)
                 n = the.seed
-                for k,_ in pairs(egs) do
+                for k,_ in keysort(egs) do
                   math.randomseed(n)
                   if k~="--all" then print("\n-----",k); egs[k]() end end end
 
