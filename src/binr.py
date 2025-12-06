@@ -1,18 +1,19 @@
 #!/usr/bin/env python3 -B
 # vim: ts=2:sw=2:sts=2:et
 """
-binr.py : build rules via stochastic incremental XAI
+binr.py : build rules via stochastic incremental XAI  
 (c) 2025, Tim Menzies, timm@ieee.org, mit-license.org
 
 Options:
- -h             Show help.
- -b  bins=7     Number of bins for discretization (int).
- -B  Budget=30  Max rows to eval (int).
- -e  era=10     Number of rows in an era (int)
- -p  p=2        Distance coefficient
- -r  repeats=20 Number of experimental repeats (int).
- -s  seed=42    Random number seed (int).
- -f  file=../data/auto93.csv File to load (str).
+
+    -h             Show help.
+    -b  bins=7     Number of bins for discretization (int).
+    -B  Budget=30  Max rows to eval (int).
+    -e  era=10     Number of rows in an era (int)
+    -p  p=2        Distance coefficient
+    -r  repeats=20 Number of experimental repeats (int).
+    -s  seed=42    Random number seed (int).
+    -f  file=../data/auto93.csv File to load (str).
 """
 from math import floor,sqrt,cos,log,exp,pi
 from typing import Any,Iterable
@@ -20,8 +21,12 @@ import fileinput,random,sys,re
 rand = random.random
 
 class o(dict):
-  __getattr__, __setattr__ = dict.__getitem__, dict.__setitem__
+  "Structs with slots accessiable via x.slot. And pretty print." 
   def __repr__(i): return show(i)
+  def __setattr__(self, k, v): self[k] = v
+  def __getattr__(self, k): 
+    try: return self[k]
+    except KeyError: raise AttributeError(k)
 
 the = o(bins=7, Budget=30, era=10, p=2, repeats=20, seed=42,
         file="../data/auto93.csv")
@@ -36,12 +41,15 @@ Rows = list[Row]
 
 # ------------------------------------------------------------------------------
 def Sym() -> o: 
+  "Summarize symbol."
   return o(it=Sym, n=0, has={}, bins={})
 
 def Num() -> o:
+  "Summarize numbers."
   return o(it=Num, n=0, mu=0, sd=0, m2=0, bins={})
 
 def Col(at=0, of=" ") -> o:
+  "Column in rows of data."
   it = (Num if of[0].isupper() else Sym)()
   it.at = at
   it.of = of
@@ -49,6 +57,7 @@ def Col(at=0, of=" ") -> o:
   return it
 
 def Cols(names:list[str]) -> o:
+  "Factory. Turns column names into columns."
   cols = [Col(at=i, of=s) for i,s in enumerate(names)]
   return o(it=Cols, names=names, 
            all = cols,
@@ -56,50 +65,58 @@ def Cols(names:list[str]) -> o:
            y   = [col for col in cols if str(col.of)[-1] in "+-"])
 
 def Data(rows = None) -> o:
+  "Summarize rows into columns."
   return adds(rows, o(it=Data, n=0, rows=[], cols=None))
 
-# ------------------------------------------------------------------------------
-def add(i: o, # o = Num | Sym | Data, 
-        v: Any,
-        inc = 1) -> Any: # returns v
-  if v=="?": return v
+# ------------------------------------------------------------------------------
+def add(i: o, # o = Col | Data, 
+        item: Any,
+        inc = 1) -> Any: # returns item
+  "Add or subtract items from columns or data."
+  if item=="?": return item
   i.n += inc
-  if   i.it is Sym: i.has[v] = inc + i.has.get(v,0)
+  if   i.it is Sym: i.has[item] = inc + i.has.get(item,0)
   elif i.it is Num:
-    v = float(v)
+    item = float(item)
     if inc < 0 and i.n < 2:
       i.n = i.mu = i.sd = i.m2 = 0
     else:
-      d     = v - i.mu
+      d     = item - i.mu
       i.mu += inc * d / i.n
-      i.m2 += inc * d * (v - i.mu)
+      i.m2 += inc * d * (item - i.mu)
       i.sd  = 0 if i.n < 2 else sqrt(max(0,i.m2)/(i.n - 1))
   elif i.it is Data:
     if i.cols: 
-      row = [add(c, v[c.at], inc) for c in i.cols.all] 
+      row = [add(c, item[c.at], inc) for c in i.cols.all] 
       i.rows.append(row) if inc > 0 else i.rows.remove(row)
-    else: i.cols = Cols(v)
-  return v
+    else: i.cols = Cols(item)
+  return item
 
-def sub(i,v): return add(i,v,-1)
+def sub(i,item): 
+  "Subtract items."
+  return add(i,item,-1)
 
-def adds(src:Iterable = None, it=None ) -> o: # returns it
+def adds(items:Iterable = None, it=None ) -> o: # returns it
+  "Load many items into `it` (defeault is `Num()`)."
   it = it or Num()
-  if str(src)[-4:]==".csv":
-    with open(src, encoding="utf-8") as f:
+  if str(items)[-4:]==".csv":
+    with open(items, encoding="utf-8") as f:
       for line in f:
         if line: add(it, [s.strip() for s in line.split(",")])
-  else: [add(it,row) for row in (src or [])]
+  else: [add(it, item) for item in (items or [])]
   return it
 
-# ------------------------------------------------------------------------------
-def norm(num:Num, v:Qty) -> float:
+# ------------------------------------------------------------------------------
+def norm(num:Num, v:Qty) -> float: 
+  "Returns 0..1."
   return 1 / (1 + exp(-1.702 * (v - num.mu)/(num.sd + 1e-32))) 
 
 def bin(col:Col, v:Atom) -> int | Atom:
+  "Returns 0..bins-1."
   return floor( the.bins * norm(col,v) ) if v!="?" and col.it is Num else v 
 
 def dist(src:Iterable) -> float:
+  "Mankoski distance."
   d,n = 0,0
   for d1 in src: 
     n += 1
@@ -107,12 +124,15 @@ def dist(src:Iterable) -> float:
   return (d/n) ** (1/the.p)
 
 def disty(data:Data, row:Row) -> float:
+  "Distance of `row` to `best` values in each goal column."
   return dist(abs(norm(col, row[col.at]) - col.best) for col in data.cols.y)
 
 def distx(data:Data, row1:Row, row2:Row) -> float:
+  "Distance between `x` attributes of two rows."
   return dist(_aha(col, row1[col.at], row2[col.at]) for col in data.cols.x)
 
 def _aha(col:Col, a:Atom, b:Atom) -> float:
+  "If any unknowns, assume max distance."
   if a==b=="?": return 1
   if col.it is Sym : return a != b
   a,b = norm(col,a), norm(col,b)
@@ -122,16 +142,19 @@ def _aha(col:Col, a:Atom, b:Atom) -> float:
 
 # ------------------------------------------------------------------------------
 def scoreGet(data:Data, row:Row) -> Row:
+  "Sum the score of the bins used by `row`."
   return sum(x.bins[b].mu for x in data.cols.x 
                           if (b := bin(x,row[x.at])) in x.bins) 
 
 def scorePut(data:Data, row:Row, score:Qty):
+  "Increment the bins used by `row`."
   for x in data.cols.x:
     if (b := bin(x, row[x.at])) != "?":
       x.bins[b] = x.bins.get(b) or Num(x.at, b)
       add(x.bins[b], score)
 
 def score(data:Data, eps=0):
+  "Guess next few scores using scores seen to date."
   best_score, best_row = 1e32, None
   random.shuffle(data.rows)
   seen, rows, model = set(), data.rows, Data([data.cols.names])
@@ -147,15 +170,16 @@ def score(data:Data, eps=0):
         best_score, best_row = score, candidate
     return best_row
 
-# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 def show(x):
+  "Pretty print."
   t = type(x)
   if t is o:          return "{"+' '.join(f":{k} {show(x[k])}" for k in x)+"}"
   if t is float:      return str(int(x)) if x == int(x) else f"{x:.3f}"
   if t is type(show): return x.__name__ + '()'
   return str(x)
 
-# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 def test_h(_) -> None: 
   print(__doc__)
 
@@ -173,19 +197,19 @@ def test__num(_) -> None:
     return mu + sd * sqrt(-2 * log(rand())) * cos(2 * pi * rand()) 
   print(adds(box_muller(10,2) for _ in range(10^4)))
 
-def test__data(f) -> None:
-  data = Data(the.file)
+def test__data(f = None) -> None:
+  data = Data(f or the.file)
   print(data.cols.x[-1])
   print(len(data.rows),data.rows[1])
 
-def test__disty(_):
-  ys, data = Num(), Data(the.file)
+def test__disty(f = None):
+  ys, data = Num(), Data(f or the.file)
   Y=lambda row: floor(100*disty(data,row))
   for r in sorted(data.rows,key=Y)[::20]:
     print(Y(r),r)
 
-def test__distx(_):
-  xs, data = Num(), Data(the.file)
+def test__distx(f = None):
+  xs, data = Num(), Data(f or the.file)
   X=lambda row1: floor(100*distx(data,row1, data.rows[0]))
   for r in sorted(data.rows,key=X)[::20]:
     print(X(r),r)
