@@ -23,9 +23,9 @@ rand = random.random
 class o(dict):
   "Structs with slots accessiable via x.slot. And pretty print." 
   def __repr__(i): return show(i)
-  def __setattr__(self, k, v): self[k] = v
-  def __getattr__(self, k): 
-    try: return self[k]
+  def __setattr__(i, k, v): i[k] = v
+  def __getattr__(i, k): 
+    try: return i[k]
     except KeyError: raise AttributeError(k)
 
 the = o(bins=7, Budget=30, era=10, p=2, repeats=20, seed=42,
@@ -150,18 +150,20 @@ def scorePut(data:Data, row:Row, score:Qty):
   "Increment the bins used by `row`."
   for x in data.cols.x:
     if (b := bin(x, row[x.at])) != "?":
-      x.bins[b] = x.bins.get(b) or Num(x.at, b)
-      add(x.bins[b], score)
+      one = x.bins[b] = x.bins.get(b) or Num()
+      one.at, one.of = x.at, b
+      add(one, score)
 
-def score(data:Data, eps=0):
+def score(data:Data, eps=0.05):
   "Guess next few scores using scores seen to date."
   best_score, best_row = 1e32, None
   random.shuffle(data.rows)
   seen, rows, model = set(), data.rows, Data([data.cols.names])
   for j, row in enumerate(rows):
+    print(len(seen))
     if len(seen) >= the.Budget: break
     add(model, row) 
-    scorePut(model, row, disty(model, rows))
+    scorePut(model, row, disty(model, row))
     seen.add(id(row))
     if j % the.era == 0:
       candidate = min(rows[j+1 : j+20], key=lambda r: scoreGet(model, r))
@@ -193,9 +195,8 @@ def test__sym(_) -> None:
   print(adds("aaaabbc",Sym()))
 
 def test__num(_) -> None:
-  def box_muller(mu,sd):
-    return mu + sd * sqrt(-2 * log(rand())) * cos(2 * pi * rand()) 
-  print(adds(box_muller(10,2) for _ in range(10^4)))
+  def boxMuller(mu,sd): return mu + sd * sqrt(-2*log(rand())) * cos(2*pi*rand()) 
+  print(adds(boxMuller(10,2) for _ in range(10^4)))
 
 def test__data(f = None) -> None:
   data = Data(f or the.file)
@@ -213,7 +214,10 @@ def test__distx(f = None):
   X=lambda row1: floor(100*distx(data,row1, data.rows[0]))
   for r in sorted(data.rows,key=X)[::20]:
     print(X(r),r)
-  
+ 
+def test__score(f= None):
+  score(Data(f or the.file))
+
 _tests= {k:fun for k,fun in vars().items() if "test__" in k}
 
 def test__all(_):
