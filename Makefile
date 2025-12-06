@@ -8,10 +8,10 @@ help: ## show this help
          NF==2 && $$1~/^[a-z0-9A-Z_-]+/{                              \
 				         printf "  %s2m%-15s%s %s\n",c,$$1,r,$$2}' $(MAKEFILE_LIST)
 
-docs  : htmls mds pdfs ## make all docs
+docs  : htmls mds # pdfs ## make all docs
 htmls : ../docs/act.html ../docs/binr.html  
 mds   : ../docs/act.1.md ../docs/act_data.5.md ../docs/binr.md ../docs/act.md   
-pdfs  : ../docs/binr.pdf ../docs/act.pdf ../docs/compart.pdf 
+#pdfs  : ../docs/binr.pdf ../docs/act.pdf ../docs/compart.pdf 
 
 ../docs/%.md : ../src/%.lua ## lua ==> markdown
 	../sh/lua2md $^ > $@
@@ -43,6 +43,22 @@ push: ## commit to main
 ../docs/act.1.md      :; pandoc -s -f man -t markdown ../src/act.1 -o $@
 ../docs/act_data.5.md :; pandoc -s -f man -t markdown ../src/act_data.5 -o $@
 
+../docs/%.pdf: %.py ## py ==> pdf
+	echo "pdf-ing py-ing $@ ... "
+	a2ps                        \
+		--file-align=virtual       \
+		--line-numbers=1            \
+		--pro=color                  \
+		--lines-per-page=120          \
+		--left-title=""                 \
+		--borders=no                     \
+	  --right-footer="page %s. of %s#"  \
+		--landscape                        \
+		--columns 3                         \
+		-M letter                            \
+		-o - $^ | ps2pdf - $@
+	open $@
+
 ../docs/%.pdf: %.lua ## lua ==> pdf
 	echo "pdf-ing $@ ... "
 	a2ps                        \
@@ -59,3 +75,5 @@ push: ## commit to main
 		-M letter                            \
 		-o - $^ | ps2pdf - $@
 	open $@
+
+
