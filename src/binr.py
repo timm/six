@@ -106,7 +106,7 @@ def adds(items:Iterable = None, it=None ) -> o: # returns it
   else: [add(it, item) for item in (items or [])]
   return it
 
-# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 def norm(num:Num, v:Qty) -> float: 
   "Returns 0..1."
   return 1 / (1 + exp(-1.702 * (v - num.mu)/(num.sd + 1e-32))) 
@@ -172,7 +172,7 @@ def score(data:Data, eps=0.05):
         best_score, best_row = score, candidate
     return best_row
 
-# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 def show(x):
   "Pretty print."
   t = type(x)
