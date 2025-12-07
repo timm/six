@@ -109,7 +109,7 @@ def adds(items:Iterable = None, it=None ) -> o: # returns it
 # ------------------------------------------------------------------------------
 def norm(num:Num, v:Qty) -> float: 
   "Returns 0..1."
-  return 1 / (1 + exp(-1.702 * (v - num.mu)/(num.sd + 1e-32))) 
+  return 1/(1+exp(-1.702 * (v- num.mu)/(num.sd + 1e-32))) if v != "?" else v 
 
 def bin(col:Col, v:Atom) -> int | Atom:
   "Returns 0..bins-1."
@@ -143,8 +143,13 @@ def _aha(col:Col, a:Atom, b:Atom) -> float:
 # ------------------------------------------------------------------------------
 def scoreGet(data:Data, row:Row) -> Row:
   "Sum the score of the bins used by `row`."
-  return sum(x.bins[b].mu for x in data.cols.x 
-                          if (b := bin(x,row[x.at])) in x.bins) 
+  print(row)
+  n = 0
+  for x in data.cols.x:
+    if (b := bin(x,row[x.at])) != "?": 
+      if b in x.bins:
+        n += x.bins[b].mu
+  return n
 
 def scorePut(data:Data, row:Row, score:Qty):
   "Increment the bins used by `row`."
@@ -160,12 +165,11 @@ def score(data:Data, eps=0.05):
   random.shuffle(data.rows)
   seen, rows, model = set(), data.rows, Data([data.cols.names])
   for j, row in enumerate(rows):
-    print(len(seen))
     if len(seen) >= the.Budget: break
     add(model, row) 
     scorePut(model, row, disty(model, row))
     seen.add(id(row))
-    if j % the.era == 0:
+    if (j+1) % the.era == 0 and j < len(rows) - 40:
       candidate = min(rows[j+1 : j+20], key=lambda r: scoreGet(model, r))
       seen.add(id(candidate))
       if (score := disty(model, candidate)) < best_score - eps:
@@ -196,7 +200,7 @@ def test__sym(_) -> None:
 
 def test__num(_) -> None:
   def boxMuller(mu,sd): return mu + sd * sqrt(-2*log(rand())) * cos(2*pi*rand()) 
-  print(adds(boxMuller(10,2) for _ in range(10^4)))
+  print(adds(boxMuller(10,2) for _ in range(10**4)))
 
 def test__data(f = None) -> None:
   data = Data(f or the.file)
