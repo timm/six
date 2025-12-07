@@ -14,7 +14,8 @@ Options:
 
 -- coerce(s) --> v;; Return int or float or bool or string from `s`.
 local function coerce(s)
-  if s then return tonumber(s) or s:match'^%s*(.-)%s*$' end end
+  if s then  
+    return math.tointeger(s) or tonumber(s) or s:match'^%s*(.-)%s*$' end end
 
 local the={}; for k,v in help:gmatch("(%S+)=(%S+)") do the[k] = coerce(v) end
 math.randomseed(the.seed)

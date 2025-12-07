@@ -35,7 +35,7 @@ Qty  = float | int
 Atom = Qty | str | bool
 Row  = list[Atom]
 Rows = list[Row]
-# Num,Sym,Cols = o,o,o      # defined below
+# Num,Sym,Tri, Cols = o, o,o,o      # defined below
 # Col  = Num | Sym          # defined below
 # Data = tuple[Rows, Cols]  # defined below
 
@@ -47,6 +47,9 @@ def Sym() -> o:
 def Num() -> o:
   "Summarize numbers."
   return o(it=Num, n=0, mu=0, sd=0, m2=0, bins={})
+
+def Tri(lo=0,mid=0.5,hi=1):  # in this file, used for generation (no updates)
+  return o(it=TRI,n=0, lo=lo, mid=mid, hi=hi)
 
 def Col(at=0, of=" ") -> o:
   "Column in rows of data."
@@ -105,6 +108,7 @@ def adds(items:Iterable = None, it=None ) -> o: # returns it
         if line: add(it, [s.strip() for s in line.split(",")])
   else: [add(it, item) for item in (items or [])]
   return it
+
 
 # ------------------------------------------------------------------------------
 def norm(num:Num, v:Qty) -> float: 
