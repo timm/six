@@ -9,6 +9,8 @@ Options:
     -h             Show help.
     -b  bins=4     Number of bins for discretization (int).
     -B  Budget=30  Max rows to eval (int).
+    -C  CF=0.8     crossover rate
+    -F  F=0.3      scale factor between two nums.
     -e  era=10     Number of rows in an era (int)
     -p  p=2        Distance coefficient
     -r  repeats=20 Number of experimental repeats (int).
@@ -20,38 +22,38 @@ from typing import Any,Iterable
 import fileinput,random,sys,re
 rand = random.random
 
-class o(dict):
+class obj(dict):
   "Structs with slots accessiable via x.slot. And pretty print." 
-  def __repr__(i): return "{" + ' '.join(f":{k} {show(i[k])}" for k in i) + "}"
+  def __repr__(i): return "{" + ' '.join(f":{k} {o(i[k])}" for k in i) + "}"
   def __setattr__(i, k, v): i[k] = v
   def __getattr__(i, k): 
     try: return i[k]
     except KeyError: raise AttributeError(k)
 
-the = o(bins=4, Budget=30, era=10, p=2, repeats=20, seed=42,
-        file="../data/auto93.csv")
+the = obj(bins=4, Budget=30, era=10, p=2, repeats=20, seed=42,
+          file="../data/auto93.csv")
 
 Qty  = float | int
 Atom = Qty | str | bool
 Row  = list[Atom]
 Rows = list[Row]
-# Num,Sym,Tri, Cols = o, o,o,o      # defined below
+# Num,Sym,Tri, Cols = obj, obj,obj,obj      # defined below
 # Col  = Num | Sym          # defined below
 # Data = tuple[Rows, Cols]  # defined below
 
 # ------------------------------------------------------------------------------
-def Sym() -> o: 
+def Sym(has=None) -> obj: 
   "Summarize symbol."
-  return o(it=Sym, n=0, has={}, bins={})
+  return obj(it=Sym, n=0, has=has or {}, bins={})
 
-def Num() -> o:
+def Num(mu=0,sd=1) -> obj:
   "Summarize numbers."
-  return o(it=Num, n=0, mu=0, sd=0, m2=0, bins={})
+  return obj(it=Num, n=0, mu=mu, sd=sd, m2=0, bins={})
 
 def Tri(lo=0,mid=0.5,hi=1):  # in this file, used for generation (no updates)
-  return o(it=TRI,n=0, lo=lo, mid=mid, hi=hi)
+  return obj(it=Tri,n=0, lo=lo, mid=mid, hi=hi)
 
-def Col(at=0, of=" ") -> o:
+def Col(at=0, of=" ") -> obj:
   "Column in rows of data."
   it = (Num if of[0].isupper() else Sym)()
   it.at = at
@@ -59,20 +61,24 @@ def Col(at=0, of=" ") -> o:
   it.best = str(of)[-1]!="-" 
   return it
 
-def Cols(names:list[str]) -> o:
+def Cols(names:list[str]) -> obj:
   "Factory. Turns column names into columns."
   cols = [Col(at=i, of=s) for i,s in enumerate(names)]
-  return o(it=Cols, names=names, 
+  return obj(it=Cols, names=names, 
            all = cols,
            x   = [col for col in cols if str(col.of)[-1] not in "+-X"],
            y   = [col for col in cols if str(col.of)[-1] in "+-"])
 
-def Data(rows = None) -> o:
+def Data(rows = None) -> obj:
   "Summarize rows into columns."
-  return adds(rows, o(it=Data, n=0, rows=[], cols=None))
+  return adds(rows, obj(it=Data, n=0, rows=[], cols=None))
 
-# ------------------------------------------------------------------------------
-def add(i: o, # o = Col | Data, 
+def clone(data, rows=None):
+  "Mimic the structure of `data`. Optinally, add some roes."
+  return adds(rows, Data([data.cols.names]))
+
+# ------------------------------------------------------------------------------
+def add(i: obj, # obj = Num | Sym  | Data    NOTE: TRI not supported 
         item: Any,
         inc = 1) -> Any: # returns item
   "Add or subtract items from columns or data."
@@ -99,7 +105,7 @@ def sub(i,item):
   "Subtract items."
   return add(i,item,-1)
 
-def adds(items:Iterable = None, it=None ) -> o: # returns it
+def adds(items:Iterable = None, it=None ) -> obj: # returns it
   "Load many items into `it` (defeault is `Num()`)."
   it = it or Num()
   if str(items)[-4:]==".csv":
@@ -109,8 +115,66 @@ def adds(items:Iterable = None, it=None ) -> o: # returns it
   else: [add(it, item) for item in (items or [])]
   return it
 
+def sample(i: Col | Data) -> Any:
+  "Sample a value from a TRI / Num / Sym / Data summary."
+  if i.it is Data: return [sample(col) for col in i.cols.all]
+  if i.it is Num : return irwinHall3(i.mu, i.sd)
+  if i.it is Tri:
+    denom = (i.hi - i.lo) if (i.hi - i.lo) != 0 else 1e-32
+    p = (i.mid - i.lo) / denom
+    u, v = rand(), rand()
+    return i.lo + (i.hi - i.lo) * (min(u, v) + p * abs(u - v))
+  if i.it is Sym:
+    most, mode = -1, None
+    r = rand() * i.n
+    for x, count in i.has.items():
+      r -= count
+      if r <= 0: return x
+      if count > most: mode, most = x, count
+    return mode
+
+def samples(data: list[Col], np=100) -> Data:
+  "Return a new data containing `n` samples from data."
+  any = lambda: random.choice(data.rows)
+  return [mix(data,any(), any(), any()) for _ in range(np)]
+
+def mix(data, a, b, c):
+  def nump(z): return type(z) in [float,int]
+  d = a[:]
+  keep = random.randrange(len(a))
+  for j,(A,B,C,col) in enumerate(zip(a,b,c,data.cols.all)):
+    if j != keep and rand() < the.CF:
+      d[j] = B if rand() < 0.5 else C
+      if col.it is Num and nump(A) and nump(B) and nump(C): 
+        d[j] = wrap(col, A + the.F*(B - C))
+  return d
+
+def wrap(num,v):
+  lo,hi = num.mu - 3*num.sd, num.mu + 3*num.sd
+  if v<lo: return hi - ((lo-v) % (hi-lo))
+  if v>hi: return lo + ((v-hi) % (hi-lo))
+  return v
 
 # ------------------------------------------------------------------------------
+def mid(i):
+  if i.it is Num: return i.mu
+  if i.it is Tri: return i.mid
+  if i.it is Sym: return max(i.has, key=i.has.get)
+  return [mid(col) for col in i.cols.all]
+
+def shuffle(lst):
+  random.shuffle(lst); return lst
+
+def irwinHall3(mu=0,sd=1):
+  "https://chatgpt.com/share/6935eb44-705c-8010-8782-454c0aff8a5e"
+  return mu + sd * 2.0 * (rand() + rand() + rand() - 1.5)
+
+def marsagliaPolar(mu=0,sd=1): 
+  while 1:
+     u,v = 2*rand()-1, 2*rand()-1
+     s = u*u + v*v
+     if 0 < s < 1: return mu + sd*u*sqrt(-2*log(s)/s)
+
 def norm(num:Num, v:Qty) -> float: 
   "Returns 0..1."
   return 1/(1+exp(-1.702 * (v- num.mu)/(num.sd + 1e-32))) if v != "?" else v 
@@ -172,8 +236,8 @@ def top(data):
 def score(data:Data, eps=0.05):
   "Guess next few scores using scores seen to date."
   best_score, best_row = 1e32, None
-  random.shuffle(data.rows)
-  seen, rows, model = set(), data.rows, Data([data.cols.names])
+  rows = shuffle(data.rows)
+  seen, model = set(), Data([data.cols.names])
   for j, row in enumerate(rows):
     if len(seen) >= the.Budget: break
     add(model, row) 
@@ -187,63 +251,91 @@ def score(data:Data, eps=0.05):
         best_score, best_row = score, candidate
   return best_score
 
-# ------------------------------------------------------------------------------
-def show(x):
+# -----------------------------------------------------------------------------
+def o(x):
   "Pretty print."
-  if type(x) is type(show) : return x.__name__ + '()'
+  if type(x) is type(o) : return x.__name__ + '()'
   if type(x) is float : return str(int(x)) if x == int(x) else f"{x:.2f}"
+  if type(x) is list : return ', '.join(o(y) for y in x)
   return str(x)
 
 # ------------------------------------------------------------------------------
-def test_h(_) -> None: 
+def go_h(_) -> None: 
   print(__doc__)
 
-def test__the(_) -> None: 
+def go__the(_) -> None: 
   print(the)
 
-def test_s(n: str) -> None: 
+def go_s(n: str) -> None: 
   the.seed = float(n); random.seed(the.seed)
 
-def test__sym(_) -> None:  
+def go__sym(_) -> None:  
   print(adds("aaaabbc",Sym()))
 
-def test__num(_) -> None:
-  def boxMuller(mu,sd): return mu + sd * sqrt(-2*log(rand())) * cos(2*pi*rand()) 
-  print(adds(boxMuller(10,2) for _ in range(10**4)))
+def go__num(_) -> None:
+  print(adds(irwinHall3(10,2) for _ in range(10**3)))
 
-def test__data(f = None) -> None:
+def go__data(f = None) -> None:
   data = Data(f or the.file)
   print(data.cols.x[-1])
   print(len(data.rows),data.rows[1])
 
-def test__disty(f = None):
+def go__disty(f = None):
   ys, data = Num(), Data(f or the.file)
+  print(*[col.of for col in data.cols.all],"y",sep="\t")
   Y=lambda row: floor(100*disty(data,row))
   for r in sorted(data.rows,key=Y)[::20]:
-    print(Y(r),r)
+    print(*r,Y(r),sep="\t")
 
-def test__distx(f = None):
+def go__distx(f = None):
   xs, data = Num(), Data(f or the.file)
+  print(*[col.of for col in data.cols.all],"x",sep="\t")
   X=lambda row1: floor(100*distx(data,row1, data.rows[0]))
   for r in sorted(data.rows,key=X)[::20]:
-    print(X(r),r)
- 
-def test__score(f= None):
+    print(*r,X(r),sep="\t")
+
+def go__inc(f=None):
+  data1 = Data(f or the.file)
+  data2 = clone(data1)
+  for row in data1.rows:
+    add(data2,row)
+    if len(data2.rows)==50: print(o(mid(data2)))
+  print(o(mid(data2)))
+  for row in data1.rows[::-1]:
+    if len(data2.rows)==50: print(o(mid(data2)))
+    sub(data2,row)
+
+def go__sample(_):
+  def f(x):
+    return 1.61 + 2.1*x[0] - 3.5*(x[1]**3) + 4*(x[2]**3) - 5*(x[3]**4)
+  eden = obj(cols=dict(X0=Num(100,1), X1=Num(20,5), X2=Num(10,4), X3=Num(3,2)))
+  data = Data([eden.obj.keys()])
+  best  = 1e32
+  bestx = None
+  for _ in range(n):
+     xs = sample(model)       # your binr.py's sampler
+     y  = ys.add(f(xs))     # update NUM stats + get numeric value
+     if y < best:
+        best, bestx = y, xs
+  return best, bestx
+
+
+def go__score(f= None):
   my   = lambda n: floor(100*n)
   data = Data(f or the.file)
   print(len(data.rows))
   ys   = adds(my(disty(data,row)) for row in data.rows)
-  print(o(mu=ys.mu,sd=ys.sd))
+  print(obj(mu=ys.mu,sd=ys.sd))
   print(*sorted(my(score(data)) for _ in range(the.repeats)))
 
-_tests= {k:fun for k,fun in vars().items() if "test__" in k}
+_tests= {k:fun for k,fun in vars().items() if "go__" in k}
 
-def test__all(_):
+def go__all(_):
   for k,fun in _tests.items(): print("\n----- "+k); fun(_)
 
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):
-    if fn := vars().get(f"test{s.replace('-', '_')}"): 
+    if fn := vars().get(f"go{s.replace('-', '_')}"): 
       random.seed(the.seed)
       fn(sys.argv[n+1] if n < len(sys.argv)-1 else None)
