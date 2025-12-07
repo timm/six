@@ -7,7 +7,7 @@ binr.py : build rules via stochastic incremental XAI
 Options:
 
     -h             Show help.
-    -b  bins=7     Number of bins for discretization (int).
+    -b  bins=4     Number of bins for discretization (int).
     -B  Budget=30  Max rows to eval (int).
     -e  era=10     Number of rows in an era (int)
     -p  p=2        Distance coefficient
@@ -22,13 +22,13 @@ rand = random.random
 
 class o(dict):
   "Structs with slots accessiable via x.slot. And pretty print." 
-  def __repr__(i): return show(i)
+  def __repr__(i): return "{" + ' '.join(f":{k} {show(i[k])}" for k in i) + "}"
   def __setattr__(i, k, v): i[k] = v
   def __getattr__(i, k): 
     try: return i[k]
     except KeyError: raise AttributeError(k)
 
-the = o(bins=7, Budget=30, era=10, p=2, repeats=20, seed=42,
+the = o(bins=4, Budget=30, era=10, p=2, repeats=20, seed=42,
         file="../data/auto93.csv")
 
 Qty  = float | int
@@ -141,13 +141,15 @@ def _aha(col:Col, a:Atom, b:Atom) -> float:
   return abs(a - b)
 
 # ------------------------------------------------------------------------------
-def scoreGet(data:Data, row:Row) -> Row:
+def scoreGet(use, row:Row) -> Row:
   "Sum the score of the bins used by `row`."
   n = 0
-  for x in data.cols.x:
-    if (b := bin(x,row[x.at])) != "?": 
-      if b in x.bins:
-        n += x.bins[b].mu
+  for num in use:
+    if (v := row[num.at]) != "?":
+      print(v, num, bin(num,v))
+      if bin(num, v) == num.of:
+        n += want(num)
+        print(22)
   return n
 
 def scorePut(data:Data, row:Row, score:Qty):
@@ -157,6 +159,11 @@ def scorePut(data:Data, row:Row, score:Qty):
       one = x.bins[b] = x.bins.get(b) or Num()
       one.at, one.of = x.at, b
       add(one, score)
+
+def want(num): return num.mu + num.sd/sqrt(num.n)
+
+def top(data):
+  return sorted((num for x in data.cols.x for num in x.bins.values()),key=want)
 
 def score(data:Data, eps=0.05):
   "Guess next few scores using scores seen to date."
@@ -169,7 +176,8 @@ def score(data:Data, eps=0.05):
     scorePut(model, row, disty(model, row))
     seen.add(id(row))
     if (j+1) % the.era == 0 and j < len(rows) - 100:
-      candidate = min(rows[j+1:j+20], key=lambda r: scoreGet(model, r))
+      use = top(model)[:5]
+      candidate = min(rows[j+1:j+20], key=lambda r: scoreGet(use, r))
       seen.add(id(candidate))
       if (score := disty(model, candidate)) < best_score - eps:
         best_score, best_row = score, candidate
@@ -178,10 +186,8 @@ def score(data:Data, eps=0.05):
 # ------------------------------------------------------------------------------
 def show(x):
   "Pretty print."
-  t = type(x)
-  if t is o:          return "{"+' '.join(f":{k} {show(x[k])}" for k in x)+"}"
-  if t is float:      return str(int(x)) if x == int(x) else f"{x:.3f}"
-  if t is type(show): return x.__name__ + '()'
+  if type(x) is type(show) : return x.__name__ + '()'
+  if type(x) is float : return str(int(x)) if x == int(x) else f"{x:.2f}"
   return str(x)
 
 # ------------------------------------------------------------------------------
