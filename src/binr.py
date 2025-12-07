@@ -143,7 +143,6 @@ def _aha(col:Col, a:Atom, b:Atom) -> float:
 # ------------------------------------------------------------------------------
 def scoreGet(data:Data, row:Row) -> Row:
   "Sum the score of the bins used by `row`."
-  print(row)
   n = 0
   for x in data.cols.x:
     if (b := bin(x,row[x.at])) != "?": 
@@ -169,12 +168,12 @@ def score(data:Data, eps=0.05):
     add(model, row) 
     scorePut(model, row, disty(model, row))
     seen.add(id(row))
-    if (j+1) % the.era == 0 and j < len(rows) - 40:
-      candidate = min(rows[j+1 : j+20], key=lambda r: scoreGet(model, r))
+    if (j+1) % the.era == 0 and j < len(rows) - 100:
+      candidate = min(rows[j+1:j+20], key=lambda r: scoreGet(model, r))
       seen.add(id(candidate))
       if (score := disty(model, candidate)) < best_score - eps:
         best_score, best_row = score, candidate
-    return best_row
+  return best_score
 
 # ------------------------------------------------------------------------------
 def show(x):
@@ -220,7 +219,12 @@ def test__distx(f = None):
     print(X(r),r)
  
 def test__score(f= None):
-  score(Data(f or the.file))
+  my   = lambda n: floor(100*n)
+  data = Data(f or the.file)
+  print(len(data.rows))
+  ys   = adds(my(disty(data,row)) for row in data.rows)
+  print(o(mu=ys.mu,sd=ys.sd))
+  print(*sorted(my(score(data)) for _ in range(the.repeats)))
 
 _tests= {k:fun for k,fun in vars().items() if "test__" in k}
 
