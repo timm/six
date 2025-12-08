@@ -312,15 +312,15 @@ def go__inc(f=None):
     if len(data2.rows)==50: print(o(mid(data2)))
     sub(data2,row)
 
-def f(x)    : return 1.61 + 2.1*x[0] - 3.5*(x[1]**3) + 4*(x[2]**3) - 5*(x[3]**4)
+def f(x)    : return 1.61 + 2.1*x[0] - 3.5*(x[1]*2) + 4*(x[2]**3) - 5*(x[3]**4)
 def fx(row) : print(obj(best=row, y=f(row)))
 
 def go__random(_):
   eden = [Num(100,1), Num(20,5), Num(10,4), Num(3,2)]
-  fx( min((sample(eden) for _ in range(500)), key=f))
+  fx( min((sample(eden) for _ in range(1000)), key=f))
 
 def go__hclimb(_):
-  m,r   = 50,9
+  m,r   = 100,9
   model = [("X1",100,1), ("X2",20,5), ("X3",10,4), ("X4",3,2)]
   eden  = [Num(mu,sd) for _,mu,sd in model]
   data  = Data([[s for s,_,_ in model]] + [sample(eden) for _ in range(m)])
