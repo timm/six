@@ -119,6 +119,7 @@ def adds(items:Iterable = None, it=None ) -> obj: # returns it
   else: [add(it, item) for item in (items or [])]
   return it
 
+# ------------------------------------------------------------------------------
 def sample(i: TRI | SYM | NUM | list) -> list:
   "Sample a value from a TRI / Num / Sym / Data summary."
   if type(i)==list : return [sample(col) for col in i]
@@ -135,12 +136,12 @@ def sample(i: TRI | SYM | NUM | list) -> list:
       if r <= 0: return x
     return x
 
-def mixes(data: list[COL], np=100) -> Data:
+def mixtures(data: list[COL], np=100) -> Data:
   "Return a new data containing `n` samples from data."
   any = lambda: random.choice(data.rows)
-  return [mix(data, any(), any(), any()) for _ in range(np)]
+  return [mixture(data, any(), any(), any()) for _ in range(np)]
 
-def mix(data:DATA, a:ROW, b:ROW, c:ROW) -> ROW:
+def mixture(data:DATA, a:ROW, b:ROW, c:ROW) -> ROW:
   "Mutate `a` by mixing items from `b,c`."
   def nump(z): return type(z) in [float,int]
   d = a[:]
@@ -327,7 +328,7 @@ def go__hclimb(_):
   for _ in range(r):
     tmp = clone(data, sorted(data.rows, key=f)[:m//2])
     fx(tmp.rows[0])
-    data = clone(data, mixes(tmp,m))
+    data = clone(data, mixtures(tmp,m))
 
 def go__score(f= None):
   my   = lambda n: floor(100*n)
