@@ -45,7 +45,7 @@ DATA = tuple[ROWS, COLS]
 
 # ------------------------------------------------------------------------------
 # Constructors, mixed case
-def Sym(has=None) -> SYM: 
+def Sym(has:dist=None) -> SYM: 
   "Summarize symbol."
   return obj(it=Sym, n=0, has=has or {}, bins={})
 
@@ -188,7 +188,6 @@ def norm(i:NUM, v:QTY) -> float:
 
 def bin(col:COL, v:ATOM) -> int | ATOM:
   "Returns 0..bins-1."
-  print("!!",col.at, col.of, v,type(v))
   return floor(the.bins * norm(col,v) ) if col.it is Num and v!="?" else v 
 
 def dist(src:Iterable) -> float:
@@ -217,16 +216,13 @@ def _aha(col:COL, a:ATOM, b:ATOM) -> float:
   return abs(a - b)
 
 # ------------------------------------------------------------------------------
-def scoreGet(use, row:ROW) -> ROW:
+def scoreGet(model, use, row:ROW) -> ROW:
   "Sum the score of the bins used by `row`."
   n = 0
-  for num in use:
-    if (v := row[num.at]) != "?":
-      print(v, num,num.at, row[num.at], row)
-      print(bin(num,v))
-      if bin(num, v) == num.of:
-        n += want(num)
-        print(22)
+  for slot in use:
+    if (v := row[slot.at]) != "?":
+      if bin(model.cols.all[slot.at], v) == slot.of:
+        n += want(slot)
   return n
 
 def scorePut(data:DATA, row:ROW, score:QTY):
@@ -237,10 +233,12 @@ def scorePut(data:DATA, row:ROW, score:QTY):
       one.at, one.of = x.at, b
       add(one, score)
 
-def want(num): return num.mu + num.sd/sqrt(num.n)
+def want(slot): return slot.mu  + slot.sd/sqrt(slot.n)
 
 def top(data):
-  return sorted((num for x in data.cols.x for num in x.bins.values()),key=want)
+  return sorted((slot for x in data.cols.x for slot in x.bins.values()),key=want)
+
+dump={}
 
 def score(data:DATA, eps=0.05):
   "Guess next few scores using scores seen to date."
@@ -253,9 +251,12 @@ def score(data:DATA, eps=0.05):
     scorePut(model, row, disty(model, row))
     seen.add(id(row))
     if (j+1) % the.era == 0 and j < len(rows) - 100:
-      use = top(model)[:5]
-      print(*use,sep="\n")
-      candidate = min(rows[j+1:j+20], key=lambda r: scoreGet(use, r))
+      use = top(model)
+      use = use[-int(sqrt(len(use))):]
+      for slot in use:
+          k=(slot.at, slot.of)
+          dump[k] = 1 + dump.get(k,0)
+      candidate = min(rows[j+1:j+100], key=lambda r: scoreGet(model,use, r))
       seen.add(id(candidate))
       if (score := disty(model, candidate)) < best_score - eps:
         best_score, best_row = score, candidate
@@ -265,7 +266,7 @@ def score(data:DATA, eps=0.05):
 def o(x):
   "Pretty print."
   if type(x) is type(o) : return x.__name__ + '()'
-  if type(x) is float : return str(int(x)) if x == int(x) else f"{x:.2f}"
+  if type(x) is float : return str(int(x)) if x == int(x) else f"{x:,.2f}"
   if type(x) is list : return "["+(', '.join(o(y) for y in x))+"]"
   return str(x)
 
@@ -319,12 +320,12 @@ def f(x)    : return 1.61 + 2.1*x[0] - 3.5*(x[1]*2) + 4*(x[2]**3) - 5*(x[3]**4)
 def fx(row) : print(obj(best=row, y=f(row)))
 
 def go__random(_):
-  eden = [Num(100,1), Num(20,5), Num(10,4), Num(3,2)]
+  eden = [Num(100,10), Num(20,5), Num(10,4), Num(3,2)]
   fx( min((sample(eden) for _ in range(1000)), key=f))
 
 def go__hclimb(_):
   m,r   = 100,9
-  model = [("X1",100,1), ("X2",20,5), ("X3",10,4), ("X4",3,2)]
+  model = [("X1",100,10), ("X2",20,5), ("X3",10,4), ("X4",3,2)]
   eden  = [Num(mu,sd) for _,mu,sd in model]
   data  = Data([[s for s,_,_ in model]] + [sample(eden) for _ in range(m)])
   for _ in range(r):
@@ -339,6 +340,7 @@ def go__score(f= None):
   ys   = adds(my(disty(data,row)) for row in data.rows)
   print(obj(mu=ys.mu,sd=ys.sd))
   print(*sorted(my(score(data)) for _ in range(the.repeats)))
+  print(sorted((n,k) for k,n in dump.items()))
 
 _tests= {k:fun for k,fun in vars().items() if "go__" in k}
 
