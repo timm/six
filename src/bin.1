@@ -1,171 +1,97 @@
-.TH BINR 1 "2025-12-02" "binr.lua" "User Commands"
+.TH BINR 1 "December 2025" "0.1" "User Commands"
 .SH NAME
 binr \- build rules via stochastic incremental XAI
-
 .SH SYNOPSIS
-.B binr.lua
-[\-h] [\-e era] [\-b bins] [\-B Budget] [\-r repeats] [\-s seed] [\-f file] [\-\-the] [\-\-shuffle] [\-\-csv] [\-\-num] [\-\-data] [\-\-disty] [\-\-score] [\-\-all]
-
+.B ./binr.py
+[\fIOPTIONS\fR] [\fIACTIONS\fR]
 .SH DESCRIPTION
-binr.lua is a small Lua program that demonstrates a simple stochastic,
-incremental approach to producing explanation-aware rules (XAI) from tabular
-data. It reads CSV data, maintains basic column summaries (numerical and
-symbolic), discretizes numeric columns into bins, and scores rows using a
-stochastic incremental sampling process.
-
-The script is intended as an educational tool and as a compact example of
-procedures such as online statistics (mean/variance), normalization,
-discretization (binning), distance-to-goal calculations, and an incremental
-scoring loop that simulates an exploration-exploitation search for good rows.
-
+.B binr
+is a Python script designed for stochastic incremental Explainable AI (XAI). It processes datasets (typically CSV) to build rules, calculate distances, and perform hill-climbing optimization to find best scoring rows.
+.PP
+The script utilizes a custom object dictionary structure and supports various statistical distributions (Normal, Triangular, Symbolic) for data summarization and sampling.
 .SH OPTIONS
+The following configuration options modify the global settings (the \fIthe\fR object).
 .TP
 .B \-h
-Show help text and usage summary.
+Show the help message and exit.
 .TP
-.B \-e era=10
-Number of rows in an era (default: 10). The algorithm evaluates progress at each era.
+.B \-b \fIbins\fR
+Set number of bins for discretization (default: 4).
 .TP
-.B \-b bins=7
-Number of bins used for discretizing numeric columns (default: 7).
+.B \-B \fIBudget\fR
+Set max rows to evaluate (default: 30).
 .TP
-.B \-B Budget=30
-Maximum number of rows to evaluate (default: 30).
+.B \-C \fICF\fR
+Set crossover rate (default: 0.8).
 .TP
-.B \-r repeats=20
-Number of experimental repeats when running repeated experiments (default: 20).
+.B \-F \fIF\fR
+Set scale factor between two numbers (default: 0.3).
 .TP
-.B \-s seed=42
-Random number seed (default: 42).
+.B \-e \fIera\fR
+Set number of rows in an era (default: 10).
 .TP
-.B \-f file=../data/auto93.csv
-Path to CSV file to load (default shown above).
+.B \-p \fIp\fR
+Set distance coefficient (default: 2).
 .TP
-.B \-\-the
-Print current configuration (internal table "the").
+.B \-r \fIrepeats\fR
+Set number of experimental repeats (default: 20).
 .TP
-.B \-\-shuffle
-Print a sample shuffled array.
+.B \-s \fIseed\fR
+Set random number seed (default: 42).
 .TP
-.B \-\-csv
-Print every 25th row read from the CSV file (demo mode).
-.TP
-.B \-\-num
-Generate 1000 Gaussian samples and print resulting summary statistics (demo).
-.TP
-.B \-\-data
-Print data column summaries (demo).
-.TP
-.B \-\-disty
-Compute and print distances-to-goal for some rows (demo).
-.TP
-.B \-\-score
-Run scoring demo: compute eps from data, shuffle rows, run scoring repeats, and print summary results.
+.B \-f \fIfile\fR
+Set file path to load data from (default: ../data/auto93.csv).
+.SH ACTIONS
+The script uses a dynamic dispatcher to run functions based on command line arguments. Double-dash arguments typically correspond to test functions or specific demos.
 .TP
 .B \-\-all
-Run all demo commands (preserves seed between demos).
-
-.SH FILES
+Run all available test functions.
 .TP
-.B binr.lua
-The script file (executable Lua script). Typically run as a command line program:
-.RS
-.nf
-./binr.lua [options]
-.fi
-.RE
-
+.B \-\-the
+Print the current global configuration settings.
+.TP
+.B \-\-sym
+Demonstrate the Symbolic (Sym) distribution summary.
+.TP
+.B \-\-num
+Demonstrate the Numeric (Num) distribution summary using Irwin-Hall sampling.
+.TP
+.B \-\-data
+Load the dataset and print summary statistics for the last X column.
+.TP
+.B \-\-disty
+Calculate and print distances of rows to the "best" values in goal columns (Y-distance).
+.TP
+.B \-\-distx
+Calculate and print distances between X attributes of rows.
+.TP
+.B \-\-inc
+Demonstrate incremental updates (adding/subtracting rows) to the Data structure.
+.TP
+.B \-\-random
+Perform random sampling on a defined model and select the best result.
+.TP
+.B \-\-hclimb
+Perform a stochastic hill-climbing algorithm to optimize row selection.
+.TP
+.B \-\-score
+Calculate scores for data rows and attempt to predict next best scores.
 .SH EXAMPLES
-.TP
-Run help:
-.nf
-./binr.lua -h
-.fi
-.TP
-Run the scoring demo with a fixed seed:
-.nf
-./binr.lua -s 123 --score
-.fi
-.TP
-Run on a specific CSV file with altered bin count and budget:
-.nf
-./binr.lua -f data/my.csv -b 10 -B 100 --score
-.fi
-
-.SH IMPLEMENTATION NOTES
-The implementation contains lightweight data-structure and algorithm primitives:
-
-.TP
-.B DATA(src)
-Create and populate a DATA object from a CSV file or table. DATA stores rows and column summaries.
-
-.TP
-.B COLS(row)
-Build column descriptors from a header row. Columns whose names start with an uppercase letter are treated as numeric (NUM); others as symbolic (SYM). Names ending with "X" mark columns to be ignored for modeling. Names ending with "+" or "-" mark goal columns.
-
-.TP
-.B NUM(at, name)
-Numeric column summary: online mean, variance (m2), sd, count, and per-bin summaries.
-
-.TP
-.B SYM(at, name)
-Symbolic column summary: counts per symbol and per-bin summaries.
-
-.TP
-.B add(i, z)
-Update object i (DATA, NUM, SYM) with value or row z. For DATA, adds rows and updates column summaries.
-
-.TP
-.B adds(src, it)
-Add many items: iterate over CSV or a table and add rows to the provided summary object.
-
-.TP
-.B norm(num, v)
-Normalized mapping of a numeric value v to (0..1) using a logistic transform centered on num.mu and scaled by num.sd.
-
-.TP
-.B bin(col, v)
-Discretize numeric value v into integer bin indices in range 0..bins-1. Returns "?" for unknowns or preserves symbolic values.
-
-.TP
-.B disty(data, row)
-Compute distance of row to the best goal according to Y (goal) columns. Uses normalized numeric distances and Euclidean aggregation.
-
-.TP
-.B scoreGet(data, row)
-Compute a score for a row by summing the mu values of bins used by the row across X (feature) columns.
-
-.TP
-.B scorePut(data, row, n)
-Add score n to the NUM bins corresponding to the row's features (used during incremental learning).
-
-.TP
-.B scoreGuess(data, rows, m, n)
-Return a sorted list of rows (or subset) with their guessed scores.
-
-.TP
-.B scoresSeen(data)
-Compute summary statistics on distances-of-seen-rows to infer an epsilon threshold used by the incremental search.
-
-.TP
-.B score(data, eps)
-Main incremental search: iteratively label rows up to Budget, update bin scores, and occasionally pick a best row. Returns a best row and its distance to the target.
-
-.TP
-.B cli(d, funs)
-Command-line driver which parses arg[] and either sets parameters in table d or runs demo functions in funs.
-
-.SH EXIT STATUS
-Successful runs normally exit with status 0. Script may terminate with Lua runtime errors if files cannot be opened or invalid data is encountered.
-
+.B View help:
+.RS
+\&./binr.py -h
+.RE
+.PP
+.B Run all tests:
+.RS
+\&./binr.py --all
+.RE
+.PP
+.B Run the hill climber with a specific seed:
+.RS
+\&./binr.py -s 12345 --hclimb
+.RE
 .SH AUTHOR
-Tim Menzies <timm@ieee.org>
-
-.SH COPYRIGHT
-2025 Tim Menzies. Distributed under the MIT license (see mit-license.org).
-
-.SH SEE ALSO
-lua(1), csv(5) (general CSV format), man(1)
-
-.SH BUGS
-This is a compact educational example rather than production-grade software. Binning and normalization choices are simple and may not suit all datasets. Use with caution on real production data.
+Written by Tim Menzies (timm@ieee.org).
+.SH LICENSE
+MIT License (mit-license.org).

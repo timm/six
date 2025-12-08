@@ -39,7 +39,7 @@ ATOM = QTY | str | bool
 ROW  = list[ATOM]
 ROWS = list[ROW]
 NUM,SYM,TRI, COLS = obj, obj,obj,obj 
-COL  = NUM | SYM                     
+COL  = NUM | SYM  # not TRO                   
 COLS = list[list[COL]]
 DATA = tuple[ROWS, COLS]             
 
@@ -49,11 +49,12 @@ def Sym(has=None) -> SYM:
   "Summarize symbol."
   return obj(it=Sym, n=0, has=has or {}, bins={})
 
-def Num(mu=0,sd=1) -> NUM:
+def Num(mu=0, sd=1) -> NUM:
   "Summarize numbers."
   return obj(it=Num, n=0, mu=mu, sd=sd, m2=0, bins={})
 
-def Tri(lo=0,mid=0.5,hi=1) -> TRI:  # TRI used for generation (no updates)
+def Tri(lo=0, mid=0.5, hi=1) -> TRI:  
+  "Used to sample from a skewed distribution but (sub/adding not defined)."
   return obj(it=Tri,n=0, lo=lo, mid=mid, hi=hi)
 
 def Col(at=0, of=" ") -> COL:
@@ -76,8 +77,8 @@ def Data(rows = None) -> DATA:
   "Summarize rows into columns."
   return adds(rows, obj(it=Data, n=0, rows=[], cols=None))
 
-def clone(data, rows=None) -> DATA:
-  "Mimic the structure of `data`. Optinally, add some roes."
+def clone(data:DATA, rows=None) -> DATA:
+  "Mimic the structure of `data`. Optinally, add some rows."
   return adds(rows, Data([data.cols.names]))
 
 # ------------------------------------------------------------------------------
@@ -87,8 +88,7 @@ def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi)
   "Add or subtract items from columns or data."
   if item=="?": return item
   i.n += inc
-  if   i.it is Sym: 
-    i.has[item] = inc + i.has.get(item,0)
+  if   i.it is Sym: i.has[item] = inc + i.has.get(item,0)
   elif i.it is Num:
     item = float(item)
     if inc < 0 and i.n < 2:
@@ -122,11 +122,10 @@ def adds(items:Iterable = None, it=None ) -> obj: # returns it
 # ------------------------------------------------------------------------------
 def sample(i: TRI | SYM | NUM | list) -> list:
   "Sample a value from a TRI / Num / Sym / Data summary."
-  if type(i)==list : return [sample(col) for col in i]
-  if i.it is Num   : return irwinHall3(i.mu, i.sd)
+  if type(i)==list: return [sample(col) for col in i]
+  if i.it is Num: return irwinHall3(i.mu, i.sd)
   if i.it is Tri:
-    denom = (i.hi - i.lo) if (i.hi - i.lo) != 0 else 1e-32
-    p = (i.mid - i.lo) / denom
+    p = (i.mid - i.lo) / (i.hi - i.lo + 1e-32)
     u, v = rand(), rand()
     return i.lo + (i.hi - i.lo) * (min(u, v) + p * abs(u - v))
   if i.it is Sym:
@@ -134,10 +133,10 @@ def sample(i: TRI | SYM | NUM | list) -> list:
     for x, count in i.has.items():
       r -= count
       if r <= 0: return x
-    return x
+    return x # should never get here.
 
 def mixtures(data: list[COL], np=100) -> Data:
-  "Return a new data containing `n` samples from data."
+  "Return `n` samples nonparametrically: add the delta between two items to a third."
   any = lambda: random.choice(data.rows)
   return [mixture(data, any(), any(), any()) for _ in range(np)]
 
@@ -183,20 +182,21 @@ def marsagliaPolar(mu=0,sd=1) -> float:
      s = u*u + v*v
      if 0 < s < 1: return mu + sd*u*sqrt(-2*log(s)/s)
 
-def norm(num:Num, v:QTY) -> float: 
+def norm(i:NUM, v:QTY) -> float: 
   "Returns 0..1."
-  return 1/(1+exp(-1.702 * (v- num.mu)/(num.sd + 1e-32))) if v != "?" else v 
+  return 1/(1+exp(-1.7*(v-i.mu)/(i.sd+1e-32))) if i.it is Num and v!="?" else v 
 
 def bin(col:COL, v:ATOM) -> int | ATOM:
   "Returns 0..bins-1."
-  return floor( the.bins * norm(col,v) ) if v!="?" and col.it is Num else v 
+  print("!!",col.at, col.of, v,type(v))
+  return floor(the.bins * norm(col,v) ) if col.it is Num and v!="?" else v 
 
 def dist(src:Iterable) -> float:
   "Mankoski distance."
   d,n = 0,0
-  for d1 in src: 
+  for z in src: 
     n += 1
-    d += d1 ** the.p
+    d += z ** the.p
   return (d/n) ** (1/the.p)
 
 def disty(data:DATA, row:ROW) -> float:
@@ -222,7 +222,8 @@ def scoreGet(use, row:ROW) -> ROW:
   n = 0
   for num in use:
     if (v := row[num.at]) != "?":
-      print(v, num, bin(num,v))
+      print(v, num,num.at, row[num.at], row)
+      print(bin(num,v))
       if bin(num, v) == num.of:
         n += want(num)
         print(22)
@@ -253,6 +254,7 @@ def score(data:DATA, eps=0.05):
     seen.add(id(row))
     if (j+1) % the.era == 0 and j < len(rows) - 100:
       use = top(model)[:5]
+      print(*use,sep="\n")
       candidate = min(rows[j+1:j+20], key=lambda r: scoreGet(use, r))
       seen.add(id(candidate))
       if (score := disty(model, candidate)) < best_score - eps:
@@ -341,7 +343,8 @@ def go__score(f= None):
 _tests= {k:fun for k,fun in vars().items() if "go__" in k}
 
 def go__all(_):
-  for k,fun in _tests.items(): print("\n----- "+k); fun(_)
+  for k,fun in _tests.items(): 
+    if k != "go_all": print("\n----- "+k); random.seed(the.seed); fun(_)
 
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":

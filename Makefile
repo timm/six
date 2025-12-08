@@ -17,8 +17,8 @@ mds   : ../docs/act.1.md ../docs/act_data.5.md ../docs/binr.md ../docs/act.md
 	../sh/lua2md $^ > $@
 
 locs: ## print LOCS
-	gawk '/^(local)? ?function/ { fun=NR } \
-	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }'  ../src/*.lua \
+	gawk '/^def/ { fun=NR } \
+	        fun && /^[ \t]*$$/ { print NR-fun; fun=0 }'  ../src/*.py \
 					| sort -n | fmt -20
 
 ../docs/%.html : %.lua ../etc/brain.png ../etc/header.md ## lua to html
