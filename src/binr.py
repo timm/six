@@ -317,13 +317,13 @@ def fx(row) : print(obj(best=row, y=f(row)))
 
 def go__random(_):
   eden = [Num(100,1), Num(20,5), Num(10,4), Num(3,2)]
-  fx( min((sample(eden) for _ in range(1000)), key=f))
+  fx( min((sample(eden) for _ in range(500)), key=f))
 
 def go__hclimb(_):
-  m,r = 60,9
-  model = [("X1",100,1),("X2",20,5), ("X3",10,4), ("X4",3,2)]
-  eden = [Num(mu,sd) for _,mu,sd in model]
-  data = Data([[s for s,_,_ in model]] + [sample(eden) for _ in range(m)])
+  m,r   = 50,9
+  model = [("X1",100,1), ("X2",20,5), ("X3",10,4), ("X4",3,2)]
+  eden  = [Num(mu,sd) for _,mu,sd in model]
+  data  = Data([[s for s,_,_ in model]] + [sample(eden) for _ in range(m)])
   for _ in range(r):
     tmp = clone(data, sorted(data.rows, key=f)[:m//2])
     fx(tmp.rows[0])
