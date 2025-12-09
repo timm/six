@@ -1,23 +1,69 @@
 #!/usr/bin/env python3 -B
 # vim: ts=2:sw=2:sts=2:et
-"""
-binr.py : build rules via stochastic incremental XAI   
-(c) 2025, Tim Menzies, timm@ieee.org, mit-license.org
+"""NAME
+       binr.py - build rules via stochastic incremental XAI
 
-Options:
+SYNOPSIS
+       binr.py [OPTIONS] [ACTION]
 
-    -h             Show help.  
-    -b  bins=4     Number of bins for discretization (int).  
-    -B  Budget=30  Max rows to eval (int).  
-    -C  CF=0.8     crossover rate  
-    -F  F=0.3      scale factor between two nums.  
-    -e  era=10     Number of rows in an era (int)  
-    -p  p=2        Distance coefficient  
-    -r  repeats=20 Number of experimental repeats (int).  
-    -s  seed=42    Random number seed (int).  
-    -f  file=../data/auto93.csv File to load (str).
-"""
-from math import floor,sqrt,cos,log,exp,pi
+DESCRIPTION
+       binr.py performs stochastic incremental Explainable AI (XAI) analysis.
+       It utilizes multi-objective optimization to discretize continuous at-
+       tributes, cluster rows, and generate rules explaining target variance.
+
+DATA FORMAT
+       Input is CSV. Header (row 1) defines column roles via naming conventions:
+       [A-Z]* : Numeric (e.g. "Age").      [a-z]* : Symbolic (e.g. "job").
+       *+     : Maximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").
+       *X     : Ignored (e.g. "idX").      ?      : Missing value.
+
+OPTIONS
+       -h          Show help message and exit.
+       -b bins     Number of bins for discretization (int, 4).
+       -B Budget   Max rows to evaluate during scoring (int, 30).
+       -C CF       Crossover rate for mixing samples (float, 0.8).
+       -F F        Scale factor between two numbers during mixing (float, 0.3).
+       -e era      Rows in an era for incremental processing (int, 10).
+       -p p        Distance coefficient for Minkowski distance (int, 2).
+       -r repeats  Number of experimental repeats (int, 20).
+       -s seed     Random number seed (int, 42).
+       -f file     Path to input CSV file (str, "../data/auto93.csv").
+
+ACTIONS
+       --data [f]  Load dataset; print summary of columns and last row.
+       --disty [f] Print distance of rows to "best" goal values.
+       --distx [f] Print distances based on independent (X) attributes.
+       --inc [f]   Test incremental loading (Welford's) by adding/subbing rows.
+       --score [f] Run XAI scoring; guesses next scores via history.
+       --random    Test stochastic sampling on generated Eden model.
+       --hclimb    Test hill-climbing optimization on generated model.
+       --all       Run all defined tests.
+
+ALGORITHMS
+       Incremental Statistics
+              Means and standard deviations are updated online using Welford's
+              algorithm to ensure numerical stability.
+
+       Distance (Aha)
+              Row differences are calculated using Aha's similarity measure
+              adapted for the Minkowski metric (p=2). Missing values ("?")
+              are assumed to have maximal distance (1.0).
+
+       Sampling
+              Normal distributions use Irwin-Hall or Marsaglia polar methods.
+              Skewed distributions are modeled using Triangular sampling.
+
+       Optimization (Mixtures)
+              Candidate generation uses strategies from Storn's Differential
+              Evolution (DE) to mix existing samples (extrapolating deltas).
+
+AUTHOR
+       Tim Menzies (timm@ieee.org)
+
+COPYRIGHT
+       (c) 2025, MIT License."""
+       
+from math import floor,sqrt,cos,log,exp,pi
 from typing import Any,Iterable
 import fileinput,random,sys,re
 rand = random.random
