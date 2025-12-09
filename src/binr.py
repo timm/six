@@ -125,7 +125,7 @@ def Data(rows = None) -> DATA:
 
 def clone(data:DATA, rows=None) -> DATA:
   "Mimic the structure of `data`. Optinally, add some rows."
-  return adds(rows, Data([data.cols.names]))
+  return Data([data.cols.names] + (rows or []))
 
 # ------------------------------------------------------------------------------
 def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi) 
@@ -137,8 +137,7 @@ def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi)
   if   i.it is Sym: i.has[item] = inc + i.has.get(item,0)
   elif i.it is Num:
     item = float(item)
-    if inc < 0 and i.n < 2:
-      i.n = i.mu = i.sd = i.m2 = 0
+    if inc < 0 and i.n < 2: i.n = i.mu = i.sd = i.m2 = 0
     else:
       d     = item - i.mu
       i.mu += inc * d / i.n
@@ -146,8 +145,8 @@ def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi)
       i.sd  = 0 if i.n < 2 else sqrt(max(0,i.m2)/(i.n - 1))
   elif i.it is Data:
     if i.cols: 
-      row = [add(c, item[c.at], inc) for c in i.cols.all] 
-      i.rows.append(row) if inc > 0 else i.rows.remove(row)
+      item = [add(c, item[c.at], inc) for c in i.cols.all] 
+      (i.rows.append if inc > 0 else i.rows.remove)(item)
     else: i.cols = Cols(item)
   return item
 
@@ -353,6 +352,7 @@ def go__distx(f = None):
 
 def go__inc(f=None):
   data1 = Data(f or the.file)
+  data1.rows = shuffle(data1.rows) # what happens in this line commented out?
   data2 = clone(data1)
   for row in data1.rows:
     add(data2,row)
@@ -366,16 +366,16 @@ def f(x)    : return 1.61 + 2.1*x[0] - 3.5*(x[1]*2) + 4*(x[2]**3) - 5*(x[3]**4)
 def fx(row) : print(obj(best=row, y=f(row)))
 
 def go__random(_):
-  eden = [Num(100,10), Num(20,5), Num(10,4), Num(3,2)]
-  fx( min((sample(eden) for _ in range(1000)), key=f))
+  cols = [Num(100,10), Num(20,5), Num(10,4), Num(3,2)]
+  fx( min((sample(cols) for _ in range(1000)), key=f))
 
 def go__hclimb(_):
   m,r   = 100,9
   model = [("X1",100,10), ("X2",20,5), ("X3",10,4), ("X4",3,2)]
-  eden  = [Num(mu,sd) for _,mu,sd in model]
-  data  = Data([[s for s,_,_ in model]] + [sample(eden) for _ in range(m)])
+  cols  = [Num(mu,sd) for _,mu,sd in model]
+  data  = Data([[s for s,_,_ in model]] + [sample(cols) for _ in range(m)])
   for _ in range(r):
-    tmp = clone(data, sorted(data.rows, key=f)[:m//2])
+    tmp = clone(data, sorted(data.rows, key=f)[:30])
     fx(tmp.rows[0])
     data = clone(data, mixtures(tmp,m))
 
