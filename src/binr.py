@@ -65,7 +65,7 @@ COPYRIGHT
        
 from math import floor,sqrt,cos,log,exp,pi
 from typing import Any,Iterable
-import fileinput,random,sys,re
+import fileinput,random,ast,sys,re
 rand = random.random
 
 class obj(dict):
@@ -91,7 +91,7 @@ DATA = tuple[ROWS, COLS]
 
 # ------------------------------------------------------------------------------
 # Constructors, mixed case
-def Sym(has:dist=None) -> SYM: 
+def Sym(has:dict=None) -> SYM: 
   "Summarize symbol."
   return obj(it=Sym, n=0, has=has or {}, bins={})
 
@@ -136,7 +136,6 @@ def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi)
   i.n += inc
   if   i.it is Sym: i.has[item] = inc + i.has.get(item,0)
   elif i.it is Num:
-    item = float(item)
     if inc < 0 and i.n < 2: i.n = i.mu = i.sd = i.m2 = 0
     else:
       d     = item - i.mu
@@ -160,7 +159,7 @@ def adds(items:Iterable = None, it=None ) -> obj: # returns it
   if str(items)[-4:]==".csv":
     with open(items, encoding="utf-8") as f:
       for line in f:
-        if line: add(it, [s.strip() for s in line.split(",")])
+        if line: add(it, [coerce(s) for s in line.split(",")])
   else: [add(it, item) for item in (items or [])]
   return it
 
@@ -277,15 +276,15 @@ def scorePut(data:DATA, row:ROW, score:QTY):
       one = x.bins[b] = x.bins.get(b) or Num()
       one.at, one.of = x.at, b
       add(one, score)
+  return row
 
 def want(slot): return slot.mu  + slot.sd/sqrt(slot.n)
 
 def top(data):
-  return sorted((slot for x in data.cols.x for slot in x.bins.values()),key=want)
+  tmp = sorted((slot for x in data.cols.x for slot in x.bins.values()),key=want)
+  return tmp[-5:-2] 
 
-dump={}
-
-def score(data:DATA, eps=0.05):
+def score1(data:DATA):
   "Guess next few scores using scores seen to date."
   best_score, best_row = 1e32, None
   rows = shuffle(data.rows)
@@ -295,17 +294,26 @@ def score(data:DATA, eps=0.05):
     add(model, row) 
     scorePut(model, row, disty(model, row))
     seen.add(id(row))
-    if (j+1) % the.era == 0 and j < len(rows) - 100:
+    if (j+1) % the.era == 0 and j < len(rows) - 30:
       use = top(model)
-      use = use[-int(sqrt(len(use))):]
-      for slot in use:
-          k=(slot.at, slot.of)
-          dump[k] = 1 + dump.get(k,0)
-      candidate = min(rows[j+1:j+100], key=lambda r: scoreGet(model,use, r))
+      candidate = min(rows[j+1:j+30], key=lambda row: scoreGet(model,use, row))
       seen.add(id(candidate))
-      if (score := disty(model, candidate)) < best_score - eps:
+      if (score := disty(model, candidate)) < best_score:
         best_score, best_row = score, candidate
-  return best_score
+  return best_row
+
+def score2(data:DATA):
+  "Guess next few scores using scores seen to date."
+  rows = shuffle(data.rows)
+  m = len(rows)//2
+  labelled = clone(data)
+  for row in rows[:the.Budget-5]:
+    add(labelled,row)
+    scorePut(labelled, row, disty(labelled, row))
+  use = top(labelled)
+  print(sorted((x.at, x.of) for x in use))
+  tmp = sorted(rows[m:], key=lambda row: scoreGet(labelled,use, row))
+  return min(tmp[:5],  key=lambda row: disty(labelled,row))
 
 # -----------------------------------------------------------------------------
 def o(x):
@@ -315,6 +323,10 @@ def o(x):
   if type(x) is list : return "["+(', '.join(o(y) for y in x))+"]"
   return str(x)
 
+def coerce(s):
+  try: return ast.literal_eval(s)
+  except Exception: return s.strip()
+
 # ------------------------------------------------------------------------------
 def go_h(_) -> None: 
   print(__doc__)
@@ -322,8 +334,7 @@ def go_h(_) -> None:
 def go__the(_) -> None: 
   print(the)
 
-def go_s(n: str) -> None: 
-  the.seed = float(n); random.seed(the.seed)
+def go_s(n:int): the.seed = n; random.seed(the.seed)
 
 def go__sym(_) -> None:  
   print(adds("aaaabbc",Sym()))
@@ -379,14 +390,17 @@ def go__hclimb(_):
     fx(tmp.rows[0])
     data = clone(data, mixtures(tmp,m))
 
-def go__score(f= None):
-  my   = lambda n: floor(100*n)
+def win(data):
+  ys = sorted(disty(data,row) for row in data.rows)
+  lo,mid,hi = ys[0], ys[ len(ys)//2 ], ys[-1]
+  return lambda r: int(100*(1 - (disty(data,r) - lo)/(mid - lo)))
+
+def go__score1(f= None,fn=score1):
   data = Data(f or the.file)
-  print(len(data.rows))
-  ys   = adds(my(disty(data,row)) for row in data.rows)
-  print(obj(mu=ys.mu,sd=ys.sd))
-  print(*sorted(my(score(data)) for _ in range(the.repeats)))
-  print(sorted((n,k) for k,n in dump.items()))
+  w = win(data)
+  print(*sorted(w(fn(data)) for _ in range(the.repeats)))
+
+def go__score2(f= None): return go__score1(f=f,fn=score2)
 
 _tests= {k:fun for k,fun in vars().items() if "go__" in k}
 
@@ -395,8 +409,13 @@ def go__all(_):
     if k != "go_all": print("\n----- "+k); random.seed(the.seed); fun(_)
 
 # ------------------------------------------------------------------------------
-if __name__ == "__main__":
+def main(funs):
   for n, s in enumerate(sys.argv):
-    if fn := vars().get(f"go{s.replace('-', '_')}"): 
-      random.seed(the.seed)
-      fn(sys.argv[n+1] if n < len(sys.argv)-1 else None)
+    v = sys.argv[n+1] if n < len(sys.argv) - 1 else None
+    if fn := funs.get(f"go{s.replace('-', '_')}"):  
+      fn(v)
+    else:
+      for k,v in the.items():
+        if s=="-"+k[0]: the[k] = coerce(v)
+
+if __name__ == "__main__": main(vars())
