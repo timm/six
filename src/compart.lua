@@ -1,208 +1,315 @@
-#!/usr/bin/env lua
--- vim: ts=2:sw=2:sts=2:et
-local run
+#!/usr/bin/env python3 -B
+import random, math, statistics
+import binr 
 
-local function saturday(x) return math.floor(x)%7==6 end
+# -----------------------------------------------------------------------------
+# 1. DATA: Projects & Policies
+# -----------------------------------------------------------------------------
 
--- Simple household diaper supply model
--- Buy weekly, use daily, dispose weekly (except when you forget)
-local function diapers()
-  return run({C={100,0,200}, -- clean diapers (stock)
-              D={0,0,200},   -- dirty diapers (stock)
-              q={0,0,100},   -- purchase rate (flow)
-              r={8,0,20},    -- usage rate (flow)
-              s={0,0,100}},  -- disposal rate (flow)
-    function(dt,t,u,v)
-      v.C = v.C + dt*(u.q-u.r)              -- clean += buy - use
-      v.D = v.D + dt*(u.r-u.s)              -- dirty += use - dispose
-      v.q = saturday(t) and 70 or 0         -- buy 70 on saturdays
-      v.s = saturday(t) and u.D or 0        -- dispose all on saturdays
-      if t==27 then v.s=0 end end) end      -- forgot to dispose on day 27
+# Mappings from Image names to Internal names
+MAP = {
+    "resl": "Arch", "apex": "Aexp", "ksloc": "LOC+", 
+    "prec": "Prec", "flex": "Flex", "team": "Team", "pmat": "Pmat", 
+    "stor": "Stor", "ruse": "Ruse", "docu": "Docu", "acap": "Acap",
+    "pcon": "Pcon", "ltex": "Ltex", "tool": "Tool", "sced": "Sced",
+    "cplx": "Cplx", "data": "Data", "pvol": "Pvol", "rely": "Rely",
+    "pcap": "Pcap", "plex": "Plex", "site": "Site", "time": "Time"
+}
 
--- Brooks, F. (1975). The Mythical Man-Month. Addison-Wesley.
--- "Adding manpower to a late software project makes it later"
-local function brooks()
-  return run({D={20,0,100},   -- experienced developers (stock)
-              N={0,0,100},    -- newbies (stock)
-              W={0,0,1000},   -- work done (stock)
-              R={1000,0,1000}}, -- work remaining (stock)
-    function(dt,t,u,v)
-      local comm = u.D*(u.D-1)/2*0.01       -- communication overhead (n²)
-      local train = u.N*0.2                 -- training overhead
-      local prod = u.D*(1-comm-train)*10    -- actual productivity
-      v.R = u.R - dt*math.max(0,prod)       -- remaining -= productivity
-      v.W = u.W + dt*math.max(0,prod)       -- done += productivity
-      v.N = u.N - dt*0.1*u.N + (t==10 and 10 or 0)  -- hire 10 at t=10
-      v.D = u.D + dt*0.1*u.N end) end       -- newbies → experienced
+# 4 Projects from Figure 4
+PROJECTS = {
+    "OSP": {
+        "ranges": {
+            "prec": (1,2), "flex": (2,5), "resl": (1,3), "team": (2,3), 
+            "pmat": (1,4), "stor": (3,5), "ruse": (2,4), "docu": (2,4),
+            "acap": (2,3), "pcon": (2,3), "apex": (2,3), "ltex": (2,4),
+            "tool": (2,3), "sced": (1,3), "cplx": (5,6), "ksloc": (75,125)
+        },
+        "fixed": {
+            "data": 3, "pvol": 2, "rely": 5, "pcap": 3, "plex": 3, "site": 3,
+            "time": 3 
+        }
+    },
+    "OSP2": {
+        "ranges": {
+            "prec": (3,5), "pmat": (4,5), "docu": (3,4), "ltex": (2,5),
+            "sced": (2,4), "ksloc": (75,125)
+        },
+        "fixed": {
+            "flex": 3, "resl": 4, "team": 3, "time": 3, "stor": 3, "data": 4,
+            "pvol": 3, "ruse": 4, "rely": 5, "acap": 4, "pcap": 3, "pcon": 3,
+            "apex": 4, "plex": 4, "tool": 5, "cplx": 4, "site": 6
+        }
+    },
+    "JPL_Flight": {
+        "ranges": {
+            "rely": (3,5), "data": (2,3), "cplx": (3,6), "time": (3,4),
+            "stor": (3,4), "acap": (3,5), "apex": (2,5), "pcap": (3,5),
+            "plex": (1,4), "ltex": (1,4), "pmat": (2,3), "ksloc": (7, 418)
+        },
+        "fixed": {
+            "tool": 2, "sced": 3, "prec": 3, "flex": 3, "resl": 3, "team": 3, 
+            "ruse": 3, "docu": 3, "pcon": 3, "site": 3, "pvol": 3
+        }
+    },
+    "JPL_Ground": {
+        "ranges": {
+            "rely": (1,4), "data": (2,3), "cplx": (1,4), "time": (3,4),
+            "stor": (3,4), "acap": (3,5), "apex": (2,5), "pcap": (3,5),
+            "plex": (1,4), "ltex": (1,4), "pmat": (1,3), "ksloc": (11, 392)
+        },
+        "fixed": {
+            "tool": 2, "sced": 3, "prec": 3, "flex": 3, "resl": 3, "team": 3, 
+            "ruse": 3, "docu": 3, "pcon": 3, "site": 3, "pvol": 3
+        }
+    }
+}
 
--- Generic defect discovery model
--- Latent bugs discovered and fixed over time
-local function bugs()
-  return run({L={80,0,100},  -- latent bugs (stock)
-              F={0,0,100},   -- found bugs (stock)
-              X={0,0,100}},  -- fixed bugs (stock)
-    function(dt,t,u,v)
-      local find = u.L*0.15                 -- discovery rate
-      local fix = u.F*0.3                   -- fix rate
-      v.L = u.L - dt*find                   -- latent -= found
-      v.F = u.F + dt*(find-fix)             -- found += discovered - fixed
-      v.X = u.X + dt*fix end) end           -- fixed += fix rate
+# 9 Standard Policies
+POLICIES = [
+    ("Pers", {"acap":5, "pcap":5, "pcon":5, "apex":5, "plex":5, "ltex":5}),
+    ("Tools", {"time":3, "stor":3, "pvol":2, "tool":5, "site":6}),
+    ("Prec", {"prec":5, "flex":5}),
+    ("Arch", {"resl":5}),
+    ("Sced", {"sced":5}),
+    ("Proc", {"pmat":5}),
+    ("Func", {"data":2, "LOC+": 0.5}), 
+    ("Team", {"team":5}),
+    ("Qual", {"rely":1, "docu":1, "time":3, "cplx":1})
+]
 
--- Cunningham, W. (1992). "The WyCash Portfolio Management System"
--- Technical debt slows velocity over time
-local function debt()
-  return run({F={0,0,100},   -- features (stock)
-              D={0,0,100},   -- debt (stock)
-              V={10,0,20}},  -- velocity (aux)
-    function(dt,t,u,v)
-      local add = u.V                       -- feature rate
-      local accrue = add*0.1                -- debt per feature
-      local repay = u.D*0.2                 -- debt repayment
-      local slow = 1-u.D/100                -- debt slows velocity
-      v.F = u.F + dt*add*slow               -- features += slowed rate
-      v.D = u.D + dt*(accrue-repay)         -- debt += accrued - repaid
-      v.V = u.V*slow end) end               -- velocity slows
+# -----------------------------------------------------------------------------
+# 2. PHYSICS
+# -----------------------------------------------------------------------------
+def get_base_definitions():
+    return [
+        ("Prec", "*", 1, 6), ("Flex", "*", 1, 6), ("Arch", "*", 1, 6),
+        ("Team", "*", 1, 6), ("Pmat", "*", 1, 6),
+        ("Acap", "-", 1, 6), ("Aexp", "-", 1, 6), ("Ltex", "-", 1, 6),
+        ("Pcap", "-", 1, 6), ("Pcon", "-", 1, 6), ("Plex", "-", 1, 6),
+        ("Sced", "-", 1, 6), ("Site", "-", 1, 6), ("Tool", "-", 1, 6),
+        ("Cplx", "+", 1, 6), ("Data", "+", 2, 5), ("Docu", "+", 1, 6),
+        ("Pvol", "+", 2, 5), ("Rely", "+", 1, 6), ("Ruse", "+", 2, 6),
+        ("Stor", "+", 3, 6), ("Time", "+", 3, 6),
+        ("LOC+", "=", 2, 2000)
+    ]
 
--- Kermack & McKendrick (1927). doi:10.1098/rspa.1927.0118
--- SIR model adapted for defect propagation through code
-local function sir()
-  return run({S={90,0,100},  -- susceptible code (stock)
-              I={10,0,100},  -- infected code (stock)
-              R={0,0,100}},  -- removed/fixed (stock)
-    function(dt,t,u,v)
-      local infect = u.S*u.I*0.001          -- infection rate (SxI)
-      local remove = u.I*0.15               -- fix rate
-      v.S = u.S - dt*infect                 -- susceptible -= infected
-      v.I = u.I + dt*(infect-remove)        -- infected += new - fixed
-      v.R = u.R + dt*remove end) end        -- removed += fixed 
+def make_project_definitions(proj_name):
+    base = get_base_definitions()
+    p_data = PROJECTS[proj_name]
+    new_defs = []
+    for name, role, def_lo, def_hi in base:
+        key = next((k for k,v in MAP.items() if v == name), None)
+        lo, hi = def_lo, def_hi
+        
+        # Apply Ranges
+        if key in p_data["ranges"]:
+            r = p_data["ranges"][key]
+            lo, hi = r[0], r[1]
+        # Apply Fixed Values
+        if key in p_data["fixed"]:
+            val = p_data["fixed"][key]
+            lo, hi = val, val
+            
+        new_defs.append((name, role, lo, hi))
+    return new_defs
 
--- Abdel-Hamid & Madnick (1991). Software Project Dynamics. Prentice-Hall
--- Development with testing and rework feedback
-local function rework()
-  return run({Req={100,0,100}, -- requirements (stock)
-              Dev={0,0,100},   -- in development (stock)
-              Test={0,0,100},  -- in testing (stock)
-              Rew={0,0,100},   -- rework queue (stock)
-              Done={0,0,100}}, -- completed (stock)
-    function(dt,t,u,v)
-      local code = u.Req*0.2                -- coding rate
-      local test = u.Dev*0.3                -- testing rate
-      local fail = u.Test*0.4               -- failure rate
-      local pass = u.Test*0.6               -- pass rate
-      local fix = u.Rew*0.5                 -- rework rate
-      v.Req = u.Req - dt*code + dt*fix      -- req -= coded + reworked
-      v.Dev = u.Dev + dt*code - dt*test     -- dev += coded - tested
-      v.Test = u.Test + dt*test - dt*(fail+pass)  -- test += in - out
-      v.Rew = u.Rew + dt*fail - dt*fix      -- rework += failed - fixed
-      v.Done = u.Done + dt*pass end) end    -- done += passed
+def risks():
+  _ = 0
+  M = { 
+    "ne":   [[_,_,_,1,2,_], [_,_,_,_,1,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_]],
+    "ne46": [[_,_,_,1,2,4], [_,_,_,_,1,2], [_,_,_,_,_,1], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_]],
+    "nw":   [[2,1,_,_,_,_], [1,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_]],
+    "nw4":  [[4,2,1,_,_,_], [2,1,_,_,_,_], [1,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_]],
+    "sw":   [[_,_,_,_,_,_], [_,_,_,_,_,_], [1,_,_,_,_,_], [2,1,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_]],
+    "sw4":  [[_,_,_,_,_,_], [_,_,_,_,_,_], [1,_,_,_,_,_], [2,1,_,_,_,_], [4,2,1,_,_,_], [_,_,_,_,_,_]],
+    "sw26": [[_,_,_,_,_,_], [_,_,_,_,_,_], [_,_,_,_,_,_], [1,_,_,_,_,_], [2,1,_,_,_,_], [_,_,_,_,_,_]], 
+    "sw46": [[_,_,_,_,_,_], [_,_,_,_,_,_], [1,_,_,_,_,_], [2,1,_,_,_,_], [4,2,1,_,_,_], [_,_,_,_,_,_]] 
+  }
+  return {
+    "Cplx": {"Acap": M["sw46"], "Pcap": M["sw46"], "Tool": M["sw46"]},
+    "Ltex": {"Pcap": M["nw4"]},
+    "Pmat": {"Acap": M["nw"],   "Pcap": M["sw46"]},
+    "Pvol": {"Plex": M["sw"]},
+    "Rely": {"Acap": M["sw4"],  "Pcap": M["sw4"],  "Pmat": M["sw4"]},
+    "Ruse": {"Aexp": M["sw46"], "Ltex": M["sw46"]},
+    "Sced": {"Cplx": M["ne46"], "Time": M["ne46"], "Pcap": M["nw4"], 
+             "Aexp": M["nw4"],  "Acap": M["nw4"],  "Plex": M["nw4"], 
+             "Ltex": M["nw"],   "Pmat": M["nw"],   "Rely": M["ne"], 
+             "Pvol": M["ne"],   "Tool": M["nw"]},
+    "Stor": {"Acap": M["sw46"], "Pcap": M["sw46"]},
+    "Team": {"Aexp": M["nw"],   "Sced": M["nw"],   "Site": M["nw"]},
+    "Time": {"Acap": M["sw46"], "Pcap": M["sw46"], "Tool": M["sw26"]},
+    "Tool": {"Acap": M["nw"],   "Pcap": M["nw"],   "Pmat": M["nw"]}
+  }
 
--- Generic learning/mentoring model
--- Juniors → trained → seniors → mentors
-local function learn()
-  return run({Jr={20,0,100},  -- juniors (stock)
-              Tr={5,0,100},   -- in training (stock)
-              Sr={5,0,100},   -- seniors (stock)
-              Mn={0,0,100}},  -- mentoring (stock)
-    function(dt,t,u,v)
-      local train = u.Jr*0.1                -- training rate
-      local promote = u.Tr*0.05             -- promotion rate
-      local mentor = u.Sr*0.02              -- mentoring rate
-      v.Jr = u.Jr - dt*train + dt*mentor    -- juniors -= training + new
-      v.Tr = u.Tr + dt*train - dt*promote   -- training += in - promoted
-      v.Sr = u.Sr + dt*promote - dt*mentor  -- seniors += promoted - mentors
-      v.Mn = u.Mn + dt*mentor end) end      -- mentors += new
+def assess(row, defs, risk_table=None, baseline=None, epsilon=0.5):
+  risk_table = risk_table or risks()
+  
+  # 1. Repair: Inputs must be rounded to epsilon
+  clean = []
+  for val, (_, _, lo, hi) in zip(row, defs):
+    val = max(lo, min(hi, val))
+    val = round(val / epsilon) * epsilon
+    clean.append(val)
+  
+  vals = {name: v for (name,_,_,_), v in zip(defs, clean)}
+  
+  # 3. Calculate Effort
+  scale_sum, em_prod = 0.0, 1.0
+  for val, (_, role, _, _) in zip(clean, defs):
+    if role == '*': 
+      scale_sum += (val - 6) * random.uniform(-1.58, -1.014)
+    elif role == '+': 
+      em_prod *= (1 + (val - 3) * random.uniform(0.073, 0.21))
+    elif role == '-': 
+      em_prod *= (1 + (val - 3) * random.uniform(-0.187, -0.078))
 
--- Brooks' Law extended with defect injection and escape
-local function brooksq()
-  return run({D={20,0,100},      -- experienced devs (stock)
-              N={0,0,100},       -- newbies (stock)
-              W={0,0,1000},      -- work done (stock)
-              R={1000,0,1000},   -- remaining (stock)
-              Defects={0,0,100}, -- defects (stock)
-              Escapes={0,0,100}}, -- escaped defects (stock)
-    function(dt,t,u,v)
-      local comm = u.D*(u.D-1)/2*0.0001     -- communication overhead (scaled)
-      local train = u.N*0.02                -- training overhead (scaled)
-      local prod = u.D*(1-comm-train)*10    -- productivity
-      local inject = prod*0.05              -- defects per work
-      local escape = u.Defects*0.1          -- escape rate
-      v.R = u.R - dt*math.max(0,prod)       -- remaining -= done
-      v.W = u.W + dt*math.max(0,prod)       -- done += productivity
-      v.N = u.N - dt*0.1*u.N + (t==10 and 10 or 0)  -- hire at t=10
-      v.D = u.D + dt*0.1*u.N                -- newbies → experienced
-      v.Defects = u.Defects + dt*inject - dt*escape  -- defects flow
-      v.Escapes = u.Escapes + dt*escape end) end     -- escapes accumulate
+  a = random.uniform(2.3, 9.18)
+  b = 0.91 + 0.01 * scale_sum
+  effort = a * (vals["LOC+"] ** b) * em_prod
 
--- Abdel-Hamid & Madnick (1991). Software Project Dynamics
--- Defect introduction, detection, residual, and operational discovery
-local function defmap()
-  return run({PC={20,0,100},    -- problem complexity (aux)
-              DE={20,0,100},    -- design effort (aux)
-              TE={2.5,0,10},    -- testing effort (aux)
-              OU={35,0,100},    -- operational usage (aux)
-              DI={3.43,0,100},  -- defects introduced (stock)
-              DD={0,0,100},     -- defects detected (stock)
-              RD={0,0,100},     -- residual defects (stock)
-              OD={0,0,100}},    -- operational defects (stock)
-    function(dt,t,u,v)
-      local intro = u.PC*0.3 - u.DE*0.2     -- complexity adds, design removes
-      local detect = u.TE*u.DI*0.4          -- testing detects
-      local escape = u.DI*(1-u.TE*0.4)      -- undetected escape
-      local oper = u.RD*u.OU*0.15           -- usage reveals residuals
-      v.DI = u.DI + dt*intro                -- introduced += net
-      v.DD = u.DD + dt*detect               -- detected += found
-      v.RD = u.RD + dt*(escape-oper)        -- residual += escaped - found
-      v.OD = u.OD + dt*oper                 -- operational += revealed
-      v.PC,v.DE,v.TE,v.OU = u.PC,u.DE,u.TE,u.OU end) end  -- aux unchanged 
+  # 4. Calculate Risk
+  risk = 0
+  for dr, interacts in risk_table.items():
+    for inter, mat in interacts.items():
+        idx1 = int(round(vals[dr])) - 1
+        idx2 = int(round(vals[inter])) - 1
+        if 0 <= idx1 < len(mat) and 0 <= idx2 < len(mat[0]):
+            risk += mat[idx1][idx2]
 
--- Copy a table (shallow)
-local function copy(t)
-  local u={}; for k,v in pairs(t) do u[k]=v end; return u end
+  # 5. Calculate Change (Distance from Baseline Mean)
+  dist = 0
+  if baseline:
+    for i, (val, (_, _, lo, hi)) in enumerate(zip(clean, defs)):
+      denom = (hi - lo) if hi != lo else 1
+      dist += ((val - baseline[i]) ** 2) / (denom**2)
+    change = math.sqrt(dist)
+  else:
+    change = 0 
 
--- Run a compartmental model from time 0 to tmax
--- have: initial state {var={init,lo,hi},...}
--- step: function(dt,t,u,v) that updates v from u
-function run(have,step,dt,tmax)
-  dt,tmax = dt or 1, tmax or 30
-  local t,u,keep = 0,{},{}
-  for k,v in pairs(have) do u[k]=v[1] end  -- extract init values
-  while t<tmax do
-    local v=copy(u); step(dt,t,u,v)
-    for k,h in pairs(have) do v[k]=math.max(h[2],math.min(h[3],v[k])) end  -- clamp
-    keep[#keep+1]={t,v}; t,u = t+dt,v end
-  return keep end
+  return clean + [risk, change, effort]
 
--- NUM: incremental stats
-local function NUM() return {n=0, mu=0, m2=0, sd=0} end
+def apply_policy(baseline_row, defs, policy_dict, risk_table, baseline_mean, epsilon):
+    """
+    Applies a standard policy to the Baseline Mean vector.
+    """
+    new_row = list(baseline_row)
+    name_to_idx = {name: i for i, (name,_,_,_) in enumerate(defs)}
+    
+    for key, val in policy_dict.items():
+        if key == "LOC+": 
+             idx = name_to_idx["LOC+"]
+             new_row[idx] *= val 
+        else:
+             target = MAP.get(key, key)
+             if target in name_to_idx:
+                 new_row[name_to_idx[target]] = val
+                 
+    return assess(new_row, defs, risk_table, baseline=baseline_mean, epsilon=epsilon)
 
-local function add(i,z)
-  i.n = i.n + 1; local d = z - i.mu
-  i.mu = i.mu + d/i.n; i.m2 = i.m2 + d*(z - i.mu)
-  i.sd = i.n<2 and 0 or math.sqrt(math.max(0,i.m2)/(i.n-1)); return z end
+# -----------------------------------------------------------------------------
+# 3. INTERFACE
+# -----------------------------------------------------------------------------
+def get_stats(data):
+  stats = {}
+  for col in data.cols.all:
+      vals = [r[col.at] for r in data.rows]
+      if not vals: stats[col.of] = (0,0)
+      else: stats[col.of] = (statistics.mean(vals), statistics.stdev(vals) if len(vals)>1 else 0)
+  return stats
 
-local function diff(num,a,b) return math.abs(a-b) > num.sd*0.35 end
+def analyze_project(proj_name, m=100, r=20, epsilon=0.5):
+    print(f"\n{'='*60}")
+    print(f" PROJECT: {proj_name}")
+    print(f"{'='*60}")
+    
+    defs = make_project_definitions(proj_name)
+    risk_table = risks()
+    
+    # 1. INITIALIZE & BASELINE
+    raw_inputs = []
+    for _ in range(m):
+        # Use random.uniform for initial generation to allow diverse starting points
+        raw_inputs.append([random.uniform(lo, hi) for _, _, lo, hi in defs])
+        
+    baseline_means = []
+    for k in range(len(defs)):
+        col_vals = [row[k] for row in raw_inputs]
+        baseline_means.append(statistics.mean(col_vals))
+        
+    # Gen 0 Data
+    rows = [assess(inp, defs, risk_table, baseline=baseline_means, epsilon=epsilon) for inp in raw_inputs]
+    header = [n for n,_,_,_ in defs] + ["Risk-", "Change-", "Effort-"]
+    data = binr.Data([header] + rows)
+    initial_stats = get_stats(data)
+    
+    # 2. OPTIMIZE (Learned Policy)
+    for gen in range(r):
+        data.rows.sort(key=lambda r: binr.disty(data, r))
+        best = data.rows[:30]
+        guesses = binr.mixtures(binr.clone(data, best), m)
+        new_rows = [assess(row[:len(defs)], defs, risk_table, baseline=baseline_means, epsilon=epsilon) for row in guesses]
+        data = binr.Data([header] + new_rows)
+        
+    learned_stats = get_stats(data)
+    
+    # 3. EVALUATE STANDARD POLICIES
+    policy_results = []
+    for pname, pdict in POLICIES:
+        res = apply_policy(baseline_means, defs, pdict, risk_table, baseline_means, epsilon)
+        policy_results.append(res)
+        
+    # 4. REPORT MATRIX
+    p_headers = [p[0] for p in POLICIES]
+    
+    print(f"{'Metric':<10} {'Base':>8} {'Lrn':>8} {'Sd':>6} " + " ".join([f"{ph:>6}" for ph in p_headers]))
+    print("-" * (10 + 8 + 8 + 6 + 7*9))
+    
+    metrics = [d[0] for d in defs] + ["Risk-", "Change-", "Effort-"]
+    
+    for i, name in enumerate(metrics):
+        base_val = initial_stats[name][0]
+        lrn_val  = learned_stats[name][0]
+        lrn_sd   = learned_stats[name][1]
+        
+        # Display logic: Round Inputs to Epsilon
+        if i < len(defs): 
+            base_disp = round(base_val/epsilon)*epsilon
+            lrn_disp  = round(lrn_val/epsilon)*epsilon
+        else:
+            base_disp = base_val
+            lrn_disp  = lrn_val
+            
+        if name == "Change-":
+            base_disp = 0.00
+            
+        base_str = f"{base_disp:8.2f}"
+        
+        # Use = for Lrn if no change
+        if abs(lrn_disp - base_disp) < 1e-9:
+            lrn_str = f"{'=':>8}"
+        else:
+            lrn_str = f"{lrn_disp:8.2f}"
+            
+        row_str = f"{name:<10} {base_str} {lrn_str} {lrn_sd:6.2f} "
+        
+        # Policies
+        for p_idx, res in enumerate(policy_results):
+            val = res[i]
+            val_disp = val
+            if i < len(defs): val_disp = round(val/epsilon)*epsilon
+            
+            # Use = for Policy if no change
+            if abs(val_disp - base_disp) < 1e-9:
+                pol_str = f"{'=':>6}"
+            else:
+                pol_str = f"{val_disp:6.2f}"
+                
+            row_str += f"{pol_str} "
+            
+        print(row_str)
 
-local function show(keep)
-  local cols={}
-  for k,_ in pairs(keep[1][2]) do cols[#cols+1]=k end; table.sort(cols)
-  local stats={}
-  for _,col in ipairs(cols) do stats[col]=NUM() end
-  for _,row in ipairs(keep) do 
-    for _,col in ipairs(cols) do add(stats[col],row[2][col]) end end
-  io.write("t ")
-  for _,col in ipairs(cols) do io.write(string.format("%6s ",col)) end; io.write("\n  ")
-  for _,col in ipairs(cols) do io.write(string.format("%6.1f ",stats[col].sd*0.35)) end; io.write("\n")
-  local last={}
-  for i,row in ipairs(keep) do
-    io.write(string.format("%2d ",row[1]))
-    for _,col in ipairs(cols) do
-      if i==1 or diff(stats[col], last[col] or 0, row[2][col]) then
-        io.write(string.format("%6.1f ",row[2][col])); last[col] = row[2][col]
-      else io.write("     . ") end end
-    io.write("\n") end end
-
--- Main: run all models
-for k,fun in pairs{diapers=diapers, brooks=brooks, bugs=bugs, 
-                    debt=debt, sir=sir, rework=rework, 
-                    learn=learn, brooksq=brooksq, defmap=defmap} do
-  print("\n"..k..":"); show(fun()) end
+if __name__ == "__main__":
+    for p in PROJECTS:
+        analyze_project(p, m=100, r=20, epsilon=0.5)
