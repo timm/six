@@ -13,9 +13,9 @@ DESCRIPTION
 
 DATA FORMAT
        Input is CSV. Header (row 1) defines column roles via naming conventions:
-       [A-Z]* : Numeric (e.g. "Age").      [a-z]* : Symbolic (e.g. "job").
-       *+     : Maximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").
-       *X     : Ignored (e.g. "idX").      ?      : Missing value.
+       [A-Z]* : Numeric (e.g. "Age").     [a-z]* : Symbolic (e.g. "job").
+       *+     : Maximize (e.g. "Pay+").   *-     : Minimize (e.g. "Cost-").
+       *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)
 
 OPTIONS
        -h          Show help message and exit.
@@ -70,14 +70,19 @@ rand = random.random
 
 class obj(dict):
   "Structs with slots accessiable via x.slot. And pretty print." 
+  pat = r"-.\s+(\w+).*,\s*([^)]+)\)"
   def __repr__(i): return "{" + ' '.join(f":{k} {o(i[k])}" for k in i) + "}"
   def __setattr__(i, k, v): i[k] = v
   def __getattr__(i, k): 
     try: return i[k]
     except KeyError: raise AttributeError(k)
 
-the = obj(bins=4, Budget=30, CF=.8, era=10, F=0.3, p=2, repeats=20, seed=42,
-          file="../data/auto93.csv")
+def coerce(s:str) -> Any:
+  "Coerce a string to an object."
+  try: return ast.literal_eval(s)
+  except Exception: return s.strip()
+
+the = obj( **{k:coerce(v) for k,v in re.findall(obj.pat, __doc__)})
 
 # types, upper case
 QTY  = float | int
@@ -322,10 +327,6 @@ def o(x):
   if type(x) is float : return str(int(x)) if x == int(x) else f"{x:,.2f}"
   if type(x) is list : return "["+(', '.join(o(y) for y in x))+"]"
   return str(x)
-
-def coerce(s):
-  try: return ast.literal_eval(s)
-  except Exception: return s.strip()
 
 # ------------------------------------------------------------------------------
 def go_h(_) -> None: 
