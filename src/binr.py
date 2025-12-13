@@ -21,6 +21,7 @@ OPTIONS
        -h          Show help message and exit.
        -b bins     Number of bins for discretization (int, 4).
        -B Budget   Max rows to evaluate during scoring (int, 30).
+       -T Test     Rows from holdout used for testing (int, 5).
        -C CF       Crossover rate for mixing samples (float, 0.8).
        -F F        Scale factor between two numbers during mixing (float, 0.3).
        -e era      Rows in an era for incremental processing (int, 10).
@@ -126,7 +127,7 @@ def Cols(names:list[str]) -> COLS:
 
 def Data(rows = None) -> DATA:
   "Summarize rows into columns."
-  return adds(rows, obj(it=Data, n=0, rows=[], cols=None))
+  return adds(rows, obj(it=Data, n=0, rows=[], cols=None, _mid=None))
 
 def clone(data:DATA, rows=None) -> DATA:
   "Mimic the structure of `data`. Optinally, add some rows."
@@ -149,6 +150,7 @@ def add(i: NUM | SYM | DATA,   # NOTE: TRI not supported (cant decrement lo,hi)
       i.sd  = 0 if i.n < 2 else sqrt(max(0,i.m2)/(i.n - 1))
   elif i.it is Data:
     if i.cols: 
+      i._mid = None
       item = [add(c, item[c.at], inc) for c in i.cols.all] 
       (i.rows.append if inc > 0 else i.rows.remove)(item)
     else: i.cols = Cols(item)
@@ -214,7 +216,9 @@ def mid(i: COL | DATA) -> ATOM | ROW:
   if i.it is Num: return i.mu
   if i.it is Tri: return i.mid
   if i.it is Sym: return max(i.has, key=i.has.get)
-  return [mid(col) for col in i.cols.all]
+  if i.it is Data:
+    i._mid = i._mid or [mid(col) for col in i.cols.all]
+    return i._mid
 
 def shuffle(lst:list) -> list:
   "Shuffle `lst` in place."
@@ -263,6 +267,32 @@ def _aha(col:COL, a:ATOM, b:ATOM) -> float:
   a = a if a != "?" else (0 if b>0.5 else 1)
   b = b if b != "?" else (0 if a>0.5 else 1)
   return abs(a - b)
+
+# ------------------------------------------------------------------------------
+# def near(data)
+#   KnowAll   = lambda row: disty(data,row)
+#   labelled  = clone(data)
+#   data.rows = shuffle(data.rows)
+#   half      = data.n // 2
+#   order     = near1(labelled, data.rows[:half])
+#   rows      = sorted(data.rows[half:], order)
+#   out       = min(rows[:the.test], key=KnowAll)
+#   return out, KnowAll(out)
+#
+# def near1(labelled,train):
+#   KnowSome = lambda row: disty(labelled, row)
+#   rows     = sorted(adds(train[:the.warm], labelled).rows, key=KnowSome)
+#   best     = clone(labelled, rows[:the.warm//2])
+#   rest     = clone(labelled  rows[the.warm//2:])
+#   for row in train[the.warm:]:
+#     if labelled.n > the.Budget: break
+#     if distx(mid(best), row) < distx(mid(rest), row):
+#       add(labelled, add(best, row))
+#       if best.n > sqrt(labelled.n):
+#         add(rest, sub(best, max(best.rows, key=KnowSome)))
+#   return obj(order=lambda row:distx(mid(best),row) - distx(mid(rest),row),
+#              best=best,
+#              rest=rest)
 
 # ------------------------------------------------------------------------------
 def scoreGet(model, use, row:ROW) -> ROW:
