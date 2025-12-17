@@ -6,50 +6,45 @@ from types import SimpleNamespace as obj
 def Sym(s=" "): return obj(it=Sym, n=0, txt=s, has={})
 def Num(s=" "): return obj(it=Num, n=0, txt=s, mu=0, m2=0, best=str(s)[-1]!="-")
 
-def Col(s): return (Num if s[0].isupper() else Sym)(s)
+def _col(s): return (Num if s[0].isupper() else Sym)(s)
 
 def Cols(names):
-  return obj(names = names, 
-             all = (cols := [Col(s) for s in names]),
+  return obj(it=Cols, names=names,
+             all = (cols := [_col(s) for s in names]),
              x   = [col for col in cols if col.txt[-1] not in "+-X"],
              y   = [col for col in cols if col.txt[-1] in "+-"])
 
-def Data(): return obj(it=Data, rows=[], n=0, cols=[])
+def Data(): return obj(it=Data, rows=[], n=0, cols=None
 
-### Methods -------------------------------------------------------------------
-def add(x,v):
-  if n=="?": return n
-  x.n += 1
-  if x.it==Num:
-    d = v - x.mu; x.mu += d/x.n; x.m2 += d*(v - x.mu)
-  elif x.it==Sym:
-    x.has[v] = 1 + x.has.get(v,0)
-  else x.it==Data
-    [add(col,v[i]) for i,col in enumerate(x.cols.all)]
+### Functions -------------------------------------------------------------------
+def add(i,v):
+  if v=="?": return v
+  i.n += 1
+  match i.it:
+    case Sym: i.has[v] = 1 + i.has.get(v,0)
+    case Num: d = v - i.mu; i.mu += d/i.n; i.m2 += d*(v - i.mu)
+    case Data:
+      if i.cols: [add(col,v[n]) for n,col in enumerate(i.cols.all)]
+      else: i.cols = Cols(v)
 
-def splitNum(num1,num2):
-  s1,s2 = sd(num1),sd(num2)
-  return (num1.mu/s1 + num2.mu/s2)/(1/s1 + 1/s2 + 1e-9)
-
-def splitSym(sym1,sym2):
-  delta = lambda k: sym1.has[k]/sym1.n - sym2.get(k,0)/sym2.n
-  return max(sym1.has, key=delta)
+def where2cut(col1,col1):
+  if col1.it is Sym: 
+    return max(col1.has, key=lambda k: win(col1,col2,k))
+  s1,s2 = sd(col1),sd(col2)
+  return (col1.mu/s1 + col2.mu/s2)/(1/s1 + 1/s2 + 1e-32)
   
-def deltaNum(best,rest):
-  n = splitNum(best,rest)
-  return (cdf(best,n)-cdf(rest,n)
-          if best.mu<rest.mu else
-          (1-cdfNum(best,n))-(1-cdfNum(rest,n)))
-
-def deltaSym(best,rest,k):
-  return best.has.get(k,0)/(best.n+1e-9) - rest.has.get(k,0)/(rest.n+1e-9)
+def win(best:Col, rest:Col,v): # n frosplitNum(best,mrest)
+  if best.it is Sym:
+    return best.get(k,0) / (best.n + 1e-32) - rest.get(k,0) / (rest.n + 1e-32)
+  c1,c2 = cdf(best,v), cdf(rest,v)
+  return c1-c2 if best.mu<rest.mu else (1-c1)-(1-c2)
 
 ### Lib -----------------------------------------------------------------------
-def o(x,pre=""):s?
-  if hasattr(x,"__dict__"): return o(x.__dict__, x.__name__ or "")
+def o(x):
+  if type(x) is obj: return x.it.__name__+o(x.__dict__)
   if type(x) is float: return str(int(x)) if x == int(x) else f"{x:,.2f}"
-  if type(x) is list: return pre+"["+', '.join(o(y) for y in x)+"]"
-  if type(x) is dict: return pre+"{"+' '.join(f":{k} {o(x[k])}" for k in x)+"}"
+  if type(x) is list: return "["+', '.join(o(y) for y in x)+"]"
+  if type(x) is dict: return "{"+' '.join(f":{k} {o(x[k])}" for k in x)+"}"
   return str(x)
 
 def coerce(s):
