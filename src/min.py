@@ -1,50 +1,70 @@
-import ast,math,sys
+import ast,math,sys,random
 from math import sqrt,exp
 from types import SimpleNamespace as obj
 
 ### Constructors --------------------------------------------------------------
-def Sym(s=" "): return obj(it=Sym, n=0, txt=s, has={})
-def Num(s=" "): return obj(it=Num, n=0, txt=s, mu=0, m2=0, best=str(s)[-1]!="-")
+def Sym(): return obj(it=Sym, n=0, has={})
+def Num(): return obj(it=Num, n=0, mu=0, m2=0)
 
-def _col(s): return (Num if s[0].isupper() else Sym)(s)
+def Col(at=0, txt=" "):
+  col = (Num if txt[0].isupper() else Sym)()
+  col.at, col.txt, col.best = at, txt, 0 if txt[-1]=="-" else 1
+  return col
 
 def Cols(names):
   return obj(it=Cols, names=names,
-             all = (cols := [_col(s) for s in names]),
+             all = (cols := [Col(at,name) for at,name in enumerate(names)]),
              x   = [col for col in cols if col.txt[-1] not in "+-X"],
              y   = [col for col in cols if col.txt[-1] in "+-"])
 
-def Data(): return obj(it=Data, rows=[], n=0, cols=None
+def Data(): return obj(it=Data, rows=[], n=0, cols=None)
 
 ### Functions -------------------------------------------------------------------
 def add(i,v):
   if v=="?": return v
   i.n += 1
-  match i.it:
-    case Sym: i.has[v] = 1 + i.has.get(v,0)
-    case Num: d = v - i.mu; i.mu += d/i.n; i.m2 += d*(v - i.mu)
-    case Data:
-      if i.cols: [add(col,v[n]) for n,col in enumerate(i.cols.all)]
-      else: i.cols = Cols(v)
+  if   Sym  is i.it: i.has[v] = 1 + i.has.get(v,0) 
+  elif Num  is i.it: d = v - i.mu; i.mu += d/i.n; i.m2 += d*(v - i.mu)  
+  elif Data is i.it: 
+    if i.cols: [add(col,v[col.at]) for col in i.cols.all]
+    else: i.cols = Cols(v); i.n = 0
+  return v
 
-def where2cut(col1,col1):
+def bestCut(best,rest):
+ cuts= [(c1,c2,cut(c1,c2)) for c1,c2 in zip(best.cols.x, rest.cols.x)]
+ c1,c2,where = max(cuts,key=lambda x: -win(*x))
+ return c1.at,c1.txt,where, win(c1,c2,where)
+
+def cut(col1,col2):
   if col1.it is Sym: 
     return max(col1.has, key=lambda k: win(col1,col2,k))
-  s1,s2 = sd(col1),sd(col2)
-  return (col1.mu/s1 + col2.mu/s2)/(1/s1 + 1/s2 + 1e-32)
-  
-def win(best:Col, rest:Col,v): # n frosplitNum(best,mrest)
-  if best.it is Sym:
-    return best.get(k,0) / (best.n + 1e-32) - rest.get(k,0) / (rest.n + 1e-32)
-  c1,c2 = cdf(best,v), cdf(rest,v)
-  return c1-c2 if best.mu<rest.mu else (1-c1)-(1-c2)
+  w1,w2 = 1/sd(col1), 1/sd(col2)
+  return (w1 * col1.mu + w2 * col2.mu) /(w1 + w2 + 1e-32)
 
-### Lib -----------------------------------------------------------------------
+def win(best:Col, rest:Col,v): # (best,rest:Col) n frosplitNum(best,mrest)
+  if best.it is Sym:
+    b,r = best.has.get(v,0)/(best.n + 1e-32), rest.has.get(v,0)/(rest.n + 1e-32)
+  else:
+    b,r = norm(best,v), norm(rest,v)
+    if best.mu > rest.mu: b,r= 1-b, 1-r
+  return b*b/(r + 1e-32)
+
+def norm(num,n): return 1 / (1 + exp(-1.7 * (n - num.mu)/(sd(num) + 1e-32))) 
+
+def sd(num): return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
+
+def disty(data,row):
+  ys = data.cols.y
+  return sqrt(sum(abs(norm(y,row[y.at]) - y.best)**2 for y in ys) / len(ys))
+
+## Lib -----------------------------------------------------------------------
 def o(x):
-  if type(x) is obj: return x.it.__name__+o(x.__dict__)
   if type(x) is float: return str(int(x)) if x == int(x) else f"{x:,.2f}"
-  if type(x) is list: return "["+', '.join(o(y) for y in x)+"]"
   if type(x) is dict: return "{"+' '.join(f":{k} {o(x[k])}" for k in x)+"}"
+  if type(x) is tuple: return "("+', '.join(o(y) for y in x)+")"
+  if type(x) is list: return "["+', '.join(o(y) for y in x)+"]"
+  if type(x) is obj: return o(x.__dict__)
+  if type(x) == type(o): return x.__name__
   return str(x)
 
 def coerce(s):
@@ -54,33 +74,31 @@ def coerce(s):
 def csv(fileName):
   with open(fileName,encoding="utf-8") as f:
     for l in f:
-      if (l:=l.split("%")[0].strip()): yield [coerce(x) for x in l.split(",")]
+      if (l:=l.split("%")[0].strip()): 
+        yield [coerce(x) for x in l.split(",")]
 
-it  = csv(sys.argv[1] if len(sys.argv)>1 else "data.csv")
-hdr = next(it)
-y   = hdr.index("class")
-xs  = [i for i in range(len(hdr)) if i!=y]
+def buffer(src, k=100):
+  cache = []
+  for n,x in enumerate(src):
+    if n==0: yield x
+    else:
+      cache += [x]
+      if len(cache) > k:
+        random.shuffle(cache); yield from cache
+        cache=[]
+  if cache: random.shuffle(cache); yield from cache
 
-def Col(name):
-  return Num() if name[0].isupper() else Sym()
-
-best = {i:Col(hdr[i]) for i in xs}
-rest = {i:Col(hdr[i]) for i in xs}
-
-for r in it:
-  tgt = best if r[y]=="best" else rest
-  for i in xs:
-    x=r[i]
-    if x=="?": continue
-    col=tgt[i]
-    (addNum(col,float(x)) if col.isNum else addSym(col,x))
-
-out=[]
-for i in xs:
-  b,r = best[i],rest[i]
-  out += ([(deltaNum(b,r),hdr[i],b.lo,b.hi)]
-          if b.isNum else
-          [(deltaSym(b,r,k),hdr[i],k) for k in b.has])
-
-print(*sorted(out,reverse=True),sep="\n")
-
+### Main -----------------------------------------------------------------------
+random.seed(1)
+ys = Num()
+all, best, rest= Data(), Data(), Data()
+file = sys.argv[1] if len(sys.argv)>1 else "data.csv"
+for n,row in enumerate(buffer(csv(file),k=20)):
+  if n==0:
+    add(all, add(rest, add(best, row)))
+  else:
+    add(all, row)
+    y = add(ys, disty(all, row))
+    add(best if y <= ys.mu else rest, row)  
+    if not (n % 20):
+      print(o(bestCut(best,rest)))
