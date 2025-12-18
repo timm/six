@@ -1,4 +1,4 @@
-import ast,math,sys,random
+import ast,sys,random
 from math import sqrt,exp
 from types import SimpleNamespace as obj
 
@@ -35,42 +35,73 @@ def add(it,v):
     else: it.cols = Cols(v); it.n=0
   return v
 
-def bestCut(best,rest):
-  cuts= [(c1,c2,cut(c1,c2)) for c1,c2 in zip(best.cols.x, rest.cols.x)]
-  c1,c2,where = max(cuts, key=lambda x: -win(*x))
-  return obj(at=c1.at, txt=c1.txt, cut=where, 
-             op= eq if Sym is c1.it else (le if c1.mu < c2.mu else gt))
+def sub(it, v):
+  if v != "?":
+    it.n -= 1
+    if it.n > 0:
+      d = v - it.mu
+      it.mu -= d / it.n
+      it.m2 -= d * (v - it.mu)
+    else: it.mu, it.m2 = 0, 0
+  return v
 
-def eq(v, want): return v=="?" or v == want
-def le(v, want): return v=="?" or v <= want
-def gt(v, want): return v=="?" or v > want
+def prob(sym,v): return sym.has.get(v,0) / (sym.n + 1e-32)
 
-def cut(col1,col2):
-  if Sym is col1.it: 
-    return max(col1.has, key=lambda k: win(col1,col2,k))
-  w1, w2 = 1/sd(col1), 1/sd(col2)
-  return (w1 * col1.mu + w2 * col2.mu) /(w1 + w2 + 1e-32)
+def norm(num,n): 
+  z = (n - num.mu) / (sd(num) + 1e-32)
+  z = max(-3,min(3,z))
+  return 1 / (1 + exp(-1.7 * z))
 
-def win(best:Col, rest:Col,v): 
-  if Sym is best.it:
-    b,r = best.has.get(v,0)/(best.n + 1e-32), rest.has.get(v,0)/(rest.n + 1e-32)
-  else:
-    b,r = norm(best,v), norm(rest,v)
-    if best.mu > rest.mu: b,r= 1-b, 1-r
-  return b*b/(r + 1e-32)
-
-def norm(num,n): return 1 / (1 + exp(-1.7 * (n - num.mu)/(sd(num) + 1e-32))) 
-
-def sd(num):     return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
+def sd(num): return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
 
 def disty(data,row):
   ys = data.cols.y
   return sqrt(sum(abs(norm(y,row[y.at]) - y.best)**2 for y in ys) / len(ys))
 
+## Cutting -------------------------------------------------------------------
+def eq(v, want): return v=="?" or v == want
+def le(v, want): return v=="?" or v <= want
+def gt(v, want): return v=="?" or v > want
+
+def bestCut(data,best, rest):
+  col1, col2, cut = max( cuts(data, best,rest), key=lambda x: -win(*x))
+  return obj(at=col1.at, txt=col1.txt, cut=cut, 
+             op= eq if Sym is col1.it else (le if col1.mu < col2.mu else gt))
+
+def cuts(data, best, rest):
+  for col1,col2 in zip(best.cols.x, rest.cols.x):
+    if Sym is col1.it: 
+      cut =  max(col1.has, key=lambda k: win(col1,col2,k)), eq
+    else: 
+      cut = numCuts(data,best.rows+rest.rows)
+    if cut: yield col1,col2, cut
+
+def numCuts(data,rows)
+  lo, cut = 1e32, None
+  lhs, rhs = Num(), adds(disty(data, r) for r in rows)
+  for row in sorted(rows, key=lambda r: r[col.at]):
+    y = disty(data, rows[i])
+    add(lhs, sub(rhs, y))
+    if lhs.n > 1 and rhs.n > 1:
+      score = (lhs.n * sd(lhs) + rhs.n * sd(rhs)) / len(rows)
+      if score < lo:
+        lo, cut = score, obj(at=col.at, txt=col.txt, 
+                            op=le if lhs.mu < rhs.mu else gt, 
+                            cut=rows[i][col.at])
+  return cut
+
+def win(best:Col, rest:Col,v): 
+  if Sym is best.it: 
+    b,r = prob(best,v), prob(rest,v)
+  else:
+    b,r = norm(best,v), norm(rest,v)
+    if best.mu > rest.mu: b,r = 1-b, 1-r
+  return b*b/(r + 1e-32)
+
 ## Lib -------------------------------------------------------------------------
 def o(v, d=2):
   isa = isinstance
-  if isa(v, float): return str(round(v, d))
+  if isa(v, (int, float)): return f"{round(v, d):,}"
   if isa(v, list):  return f"[{', '.join(o(k,d) for k in v)}]"
   if isa(v, tuple): return f"({', '.join(o(k,d) for k in v)})"
   if callable(v):   return v.__name__
@@ -89,24 +120,35 @@ def csv(fileName):
         yield [coerce(x) for x in l.split(",")]
 
 ### Main -----------------------------------------------------------------------
-def xai(data, suffix=""):
-  rows = sorted(data.rows, key=lambda row: disty(data,row))
-  n = len(rows)//2
-  print(o(disty(data,rows[n])), suffix)
-  if len(rows) > 4: 
-    go = bestCut(clone(data, rows[:n]), clone(data,rows[n:]))
-    xai(clone(data, [row for row in rows if go.op(row[go.at], go.cut)]),
-        o((go.txt,go.op, go.cut)))
+def xai(data): return _xai(data,data,1e32,"")
 
-fileName = sys.argv[1] if len(sys.argv)>1 else "data.csv"
+def _xai(data,best,b4,suffix):
+  if (rows := sorted(best.rows, key=lambda row: disty(data,row))):
+    print(len(rows), disty(data,rows[len(rows)//2]), suffix)
+    if 4 < len(rows) < b4:
+      n = int(sqrt(len(rows)))
+      cut = bestCut(data, clone(data, rows[:n]), clone(data, rows[n:]))
+      _xai(data, 
+           clone(data, [r for r in rows if cut.op(r[cut.at], cut.cut)]),
+           len(best.rows),
+           o((cut.txt, cut.op, cut.cut)))
+
+file = sys.argv[1] if len(sys.argv)>1 else "data.csv"
 
 print(";; csv -----------")
-for i,row in enumerate(csv(fileName)): 
-  if i % 30 ==0: print(i,row)
+for i,row in enumerate(csv(file)): 
+  if i % 40 ==0: print(i,row)
+
 print(";; data -----------")
-for col in Data(csv(fileName)).cols.x: print(o(col))
+for col in Data(csv(file)).cols.x: print(o(col))
+
 print(";; clone -----------")
-clone(Data(csv(fileName)))
+clone(Data(csv(file)))
+
+print(";; disty ------------")
+data=Data(csv(file))
+for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: print(row)
+
 print(";; xai -----------")
-xai(Data(csv(fileName)))
+xai(Data(csv(file)))
 
