@@ -1,10 +1,11 @@
+#!/usr/bin/env python3 -B
 import ast,sys,random
-from math import sqrt,exp
+from math import sqrt,exp,min,.max.floor
 from types import SimpleNamespace as obj
 
 ### Constructors --------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
-def Num(): return obj(it=Num, n=0, mu=0, m2=0)
+def Num(): return obj(it=Num, n=0, mu=0, m2=0, lo=1e32, hi=-1e32)
 
 def Col(at=0, txt=" "):
   col = (Num if txt[0].isupper() else Sym)()
@@ -17,42 +18,33 @@ def Cols(names):
              x=[col for col in cols if col.txt[-1] not in "+-X"],
              y=[col for col in cols if col.txt[-1] in "+-"])
 
-def Data(rows=None): return adds(rows, obj(it=Data, rows=[], n=0, cols=None))
+def Data(rows=None): 
+   data = obj(it=Data, rows=[], n=0, cols=None)
+   [add(data,row) for row in rows or []]
+   return data
 
 def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
 
 ### Functions -------------------------------------------------------------------
-def adds(src, it=None):
-  it = it or Num(); [add(it, x) for x in src]; return it
-
 def add(it,v):
   if v=="?": return v
   it.n += 1
   if   Sym  is it.it: it.has[v] = 1 + it.has.get(v,0) 
-  elif Num  is it.it: d = v - it.mu; it.mu += d/it.n; it.m2 += d*(v - it.mu)  
+  elif Num  is it.it: 
+      d = v - it.mu; it.mu += d/it.n; it.m2 += d*(v - it.mu)  
+      it.lo = min(v, it.lo)
+      it.hi = max(v, it.hi)
   elif Data is it.it: 
     if    it.cols: it.rows.append([add(col,v[col.at]) for col in it.cols.all])
     else: it.cols = Cols(v); it.n=0
   return v
 
-def sub(it, v):
-  if v != "?":
-    it.n -= 1
-    if it.n > 0:
-      d = v - it.mu
-      it.mu -= d / it.n
-      it.m2 -= d * (v - it.mu)
-    else: it.mu, it.m2 = 0, 0
-  return v
-
-def prob(sym,v): return sym.has.get(v,0) / (sym.n + 1e-32)
-
 def norm(num,n): 
-  z = (n - num.mu) / (sd(num) + 1e-32)
-  z = max(-3,min(3,z))
+  z = max(-3, min(3, (n - num.mu) / (sd(num) + 1e-32)))
   return 1 / (1 + exp(-1.7 * z))
 
-def sd(num): return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
+def sd(num): 
+  return 1e-32 + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
 
 def disty(data,row):
   ys = data.cols.y
@@ -68,35 +60,17 @@ def bestCut(data,best, rest):
   return obj(at=col1.at, txt=col1.txt, cut=cut, 
              op= eq if Sym is col1.it else (le if col1.mu < col2.mu else gt))
 
-def cuts(data, best, rest):
-  for col1,col2 in zip(best.cols.x, rest.cols.x):
-    if Sym is col1.it: 
-      cut =  max(col1.has, key=lambda k: win(col1,col2,k)), eq
-    else: 
-      cut = numCuts(data,best.rows+rest.rows)
-    if cut: yield col1,col2, cut
-
-def numCuts(data,rows)
-  lo, cut = 1e32, None
-  lhs, rhs = Num(), adds(disty(data, r) for r in rows)
-  for row in sorted(rows, key=lambda r: r[col.at]):
-    y = disty(data, rows[i])
-    add(lhs, sub(rhs, y))
-    if lhs.n > 1 and rhs.n > 1:
-      score = (lhs.n * sd(lhs) + rhs.n * sd(rhs)) / len(rows)
-      if score < lo:
-        lo, cut = score, obj(at=col.at, txt=col.txt, 
-                            op=le if lhs.mu < rhs.mu else gt, 
-                            cut=rows[i][col.at])
-  return cut
-
-def win(best:Col, rest:Col,v): 
-  if Sym is best.it: 
-    b,r = prob(best,v), prob(rest,v)
-  else:
-    b,r = norm(best,v), norm(rest,v)
-    if best.mu > rest.mu: b,r = 1-b, 1-r
-  return b*b/(r + 1e-32)
+def cuts(data, rows):
+  xs,ys={},{}
+  for col in data.cols.x
+    for x,y in [(x,disty(data,r)) for r in rows if (x:=r[col.at]) != "?"]:
+      xat = x if Sym is col1.it else floor(BINS*norm(col,x))
+      k = (xat, col1.at, le if Sym is col.at else eq)
+      if k not in xs: xs[k], ys[k] = x, Num()
+      xs[k] =  max(x, xs[k])
+      add(ys[k], y)
+  k = min(ys, key=lambda k: ys[k].mu + ys[k].sd/sqrt(ys[k].n))
+  return xs[k], *k
 
 ## Lib -------------------------------------------------------------------------
 def o(v, d=2):
