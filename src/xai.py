@@ -5,7 +5,7 @@ from types import SimpleNamespace as obj
 
 ### Constructors --------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
-def Num(): return obj(it=Num, n=0, mu=0, m2=0, lo=1e32, hi=-1e32)
+def Num(): return obj(it=Num, n=0, mu=0, m2=0)
 
 def Col(at=0, txt=" "):
   col = (Num if txt[0].isupper() else Sym)()
@@ -30,21 +30,18 @@ def add(it,v):
   if v=="?": return v
   it.n += 1
   if   Sym  is it.it: it.has[v] = 1 + it.has.get(v,0) 
-  elif Num  is it.it: 
-      d = v - it.mu; it.mu += d/it.n; it.m2 += d*(v - it.mu)  
-      it.lo = min(v, it.lo)
-      it.hi = max(v, it.hi)
+  elif Num  is it.it: d = v - it.mu; it.mu += d/it.n; it.m2 += d*(v - it.mu)  
   elif Data is it.it: 
     if    it.cols: it.rows.append([add(col,v[col.at]) for col in it.cols.all])
     else: it.cols = Cols(v); it.n=0
   return v
 
 def norm(num,n): 
-  z = max(-3, min(3, (n - num.mu) / (sd(num) + 1e-32)))
-  return 1 / (1 + exp(-1.7 * z))
+  z = (n - num.mu) / sd(num)
+  return 1 / (1 + exp(-1.7 * max(-3, min(3, z))))
 
 def sd(num): 
-  return 1e-32 + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
+  return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
 
 def disty(data,row):
   ys = data.cols.y
@@ -61,16 +58,20 @@ def bestCut(data,best, rest):
              op= eq if Sym is col1.it else (le if col1.mu < col2.mu else gt))
 
 def cuts(data, rows):
-  xs,ys={},{}
+  lst = []
   for col in data.cols.x
-    for x,y in [(x,disty(data,r)) for r in rows if (x:=r[col.at]) != "?"]:
-      xat = x if Sym is col1.it else floor(BINS*norm(col,x))
-      k = (xat, col1.at, le if Sym is col.at else eq)
-      if k not in xs: xs[k], ys[k] = x, Num()
-      xs[k] =  max(x, xs[k])
-      add(ys[k], y)
-  k = min(ys, key=lambda k: ys[k].mu + ys[k].sd/sqrt(ys[k].n))
-  return xs[k], *k
+    b4=None
+    for x,y in sorted((x,disty(data,r)) for r in rows if (x:=r[col.at]) != "?"):
+      now = x if Sym is col1.it else floor(BINS*norm(col,x))
+      if now != b4:
+        lst += [Num(col.at)]
+        lst[-1].xlo = x
+        if b4: lst[b4].hi = x
+        b4=x
+      add(lst[-1], y)
+  lst[0].xlo  = -1e-32
+  lst[-1].xhi = 1e-32
+  return min(ys, key=lambda k: ys[k].mu + ys[k].sd/sqrt(ys[k].n))
 
 ## Lib -------------------------------------------------------------------------
 def o(v, d=2):
