@@ -6,9 +6,8 @@ from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 
 BIG=1e32
-BINS=7
-BUDGET=30
-SEED=1
+
+the=obj(bins=7, budget=30, seed=1)
 
 ### Constructors -------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -55,7 +54,7 @@ def disty(data,row):
   return sqrt(sum(abs(norm(y,row[y.at]) - y.best)**2 for y in ys) / len(ys))
 
 ## Cutting -------------------------------------------------------------------
-def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1e-32)
+def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
 
 def cut(data, rows):
   all_bins = (b for col in data.cols.x for b in cuts(col, rows, data))
@@ -64,7 +63,7 @@ def cut(data, rows):
 def cuts(col, rows, data):
   d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
   for x, y in sorted(xys):
-    k = x if Sym is col.it else floor(BINS * norm(col, x))
+    k = x if Sym is col.it else floor(the.bins * norm(col, x))
     if k not in d: d[k] = obj(at=col.at, txt=col.txt, xlo=x, xhi=x, y=Num())
     add(d[k].y, y)
     d[k].xhi = x
@@ -83,7 +82,7 @@ def select(rule, row):
   return rule.xlo <= x < rule.xhi
 
 def xai(data):
-  print(o(bins=BINS))
+  print(o(the))
   print(*data.cols.names)
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
@@ -99,7 +98,7 @@ def six(data):
   unique=set()
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    some = shuffle(rows)[:BUDGET]
+    some = shuffle(rows)[:the.budget]
     for row in some:
       add(seen,row)
       unique.add(tuple(row))
@@ -143,15 +142,21 @@ def go_h():
 
 def go_s(s): 
   "-s [1]          set random SEED "
-  global SEED; SEED=coerce(s); random.seed(SEED)
+  the.seed = coerce(s); random.seed(the.seed)
 
 def go_b(s): 
   "-b [5]          set number of BINS used on discretization"
-  global BINS; BINS=coerce(s)
+  the.bins = coerce(s)
 
 def go_B(s): 
   "-B [30]         set BUDGET for rows labelled each round"
-  global BUDGET;  BUDGET=coerce(s)
+  the.budget = coerce(s)
+
+def go__all(file):
+  "--all FILE      run all actions that use a FILE"
+  for k,fun in globals().items():
+    if k.startswith("go__") and k != "go__all": 
+      print("\n#",k,"------------"); fun(file)
 
 def go__csv(file):
   "--csv FILE      test csv loading"
@@ -160,19 +165,22 @@ def go__csv(file):
 
 def go__data(file): 
   "--data FILE     test ading columns from file"
-  for col in Data(csv(file)).cols.x: print(o(col))
+  data =  Data(csv(file))
+  print(*data.cols.names)
+  for col in data.cols.x: print(o(col))
 
 def go__clone(file): 
   "--clone FILE    test echoing structure of a table to a new table"
   data1 =  Data(csv(file))
-  data2 = cline(data1,data1,rows)
+  data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
 def go__disty(file):
   "--disty FILE    can we sort rows by their distance to heaven?"
   data=Data(csv(file))
+  print(*data.cols.names)
   for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
-    print(row)
+    print(*row)
 
 def go__xai(file): 
   "--xai FILE      can we succinctly list main effects in a table?"
@@ -182,9 +190,9 @@ def go__xai(file):
 def go__six(file): 
   "--six FILE      redo xai, but in each loop, just read BUDGET rows"
   xai(Data(csv(file))); print(" ")
-  go_s(SEED)
+  go_s(the.seed)
   for b in [5,10,20,30]:
-    go_B(b)
+    go_B(the.budget)
     print(b,sorted(six(Data(csv(file))) for _ in range(20)))
 
 if __name__ == "__main__":
