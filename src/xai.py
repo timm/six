@@ -21,8 +21,8 @@ def Col(at=0, txt=" "):
 def Cols(names):
   cols = [Col(i,s) for i,s in enumerate(names)]
   return obj(it=Cols, names=names, all=cols,
-             x=[col for col in cols if col.txt[-1] not in "+-X"],
-             y=[col for col in cols if col.txt[-1] in "+-"])
+             x = [col for col in cols if col.txt[-1] not in "+-X"],
+             y = [col for col in cols if col.txt[-1] in "+-"])
 
 def Data(rows=None): 
    data = obj(it=Data, rows=[], n=0, cols=None)
