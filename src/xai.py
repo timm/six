@@ -5,6 +5,8 @@ from types import SimpleNamespace as obj
 
 BIG=1e32
 BINS=7
+BUDGET=30
+SEED=1
 ### Constructors --------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
 def Num(): return obj(it=Num, n=0, mu=0, m2=0)
@@ -92,29 +94,36 @@ def csv(fileName):
   with open(fileName,encoding="utf-8") as f:
     for l in f:
       if (l:=l.split("%")[0].strip()): 
-        yield [coerce(x) for x in l.split(",")]
+        yield [coerce(x.strip()) for x in l.split(",")]
 
 def shuffle(lst): random.shuffle(lst); return lst
 
 ### Main -----------------------------------------------------------------------
 def xai(data):
   def select(rule, row):
-    x = row[rule.at]
-    if x == "?" or rule.xlo == rule.xhi == x: return True
+    if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
     return rule.xlo <= x < rule.xhi
 
-  def go(rows, lvl, prefix=""):
-    ys = Num(); [add(ys, disty(data, row)) for row in rows]
-    print(f"{o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    rule = cut(data, rows)
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); 
+    tmp = sorted(shuffle(rows)[:BUDGET], 
+                 key=lambda row: add(ys, disty(data, row)))
+    print(f"{o(tmp[len(tmp)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    rule = cut(clone(data,shuffle(tmp)), shuffle(tmp))
     if rule:
       now = [row for row in rows if select(rule, row)]
       if 4 < len(now) < len(rows):
-        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {rule.xlo}..{rule.xhi} ")
+        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
 
+  print(o(seed=SEED,budget=BUDGET,bins=BINS))
+  print(*data.cols.names)
   go(data.rows, 0)
 
 #------------------------------------------------------------------------------
+def go_s(s): global SEED; SEED=coerce(s); random.seed(SEED)
+def go_b(s): global BINS; BINS=coerce(s)
+def go_B(s): global BUDGET;  BUDGET=coerce(s)
+
 def go__csv(file):
   for i,row in enumerate(csv(file)): 
     if i % 40 ==0: print(i,row)
@@ -129,10 +138,13 @@ def go__disty(file):
   for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
     print(row)
 
-def go__xai(file): xai(Data(csv(file)))
+def go__xai(file): 
+  random.seed(SEED)
+  xai(Data(csv(file)))
 
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"): 
       print("# "+ fn.__name__)
       fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
+
