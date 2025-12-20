@@ -1,8 +1,10 @@
 #!/usr/bin/env python3 -B
 import ast,sys,random
-from math import sqrt,exp,min,.max.floor
+from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 
+BIG=1e32
+BINS=7
 ### Constructors --------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
 def Num(): return obj(it=Num, n=0, mu=0, m2=0)
@@ -48,40 +50,38 @@ def disty(data,row):
   return sqrt(sum(abs(norm(y,row[y.at]) - y.best)**2 for y in ys) / len(ys))
 
 ## Cutting -------------------------------------------------------------------
-def eq(v, want): return v=="?" or v == want
-def le(v, want): return v=="?" or v <= want
-def gt(v, want): return v=="?" or v > want
+def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1e-32)
 
-def bestCut(data,best, rest):
-  col1, col2, cut = max( cuts(data, best,rest), key=lambda x: -win(*x))
-  return obj(at=col1.at, txt=col1.txt, cut=cut, 
-             op= eq if Sym is col1.it else (le if col1.mu < col2.mu else gt))
+def cut(data, rows):
+  all_bins = (b for col in data.cols.x for b in cuts(col, rows, data))
+  return min(all_bins, key=lambda b: score(b.y), default=None)
 
-def cuts(data, rows):
-  lst = []
-  for col in data.cols.x
-    b4=None
-    for x,y in sorted((x,disty(data,r)) for r in rows if (x:=r[col.at]) != "?"):
-      now = x if Sym is col1.it else floor(BINS*norm(col,x))
-      if now != b4:
-        lst += [Num(col.at)]
-        lst[-1].xlo = x
-        if b4: lst[b4].hi = x
-        b4=x
-      add(lst[-1], y)
-  lst[0].xlo  = -1e-32
-  lst[-1].xhi = 1e-32
-  return min(ys, key=lambda k: ys[k].mu + ys[k].sd/sqrt(ys[k].n))
+def cuts(col, rows, data):
+  d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
+  for x, y in sorted(xys):
+    k = x if Sym is col.it else floor(BINS * norm(col, x))
+    if k not in d: d[k] = obj(at=col.at, txt=col.txt, xlo=x, xhi=x, y=Num())
+    add(d[k].y, y)
+    d[k].xhi = x
+  return _complete(col, sorted(d.values(), key=lambda b: b.xlo))
+
+def _complete(col, lst):
+  if Num is col.it:
+    for i, b in enumerate(lst):
+      b.xlo = lst[i-1].xhi if i > 0 else -BIG
+      b.xhi = lst[i+1].xlo if i < len(lst)-1 else BIG
+  return lst
 
 ## Lib -------------------------------------------------------------------------
-def o(v, d=2):
+def o(v=None, dec=2,**d):
   isa = isinstance
-  if isa(v, (int, float)): return f"{round(v, d):,}"
-  if isa(v, list):  return f"[{', '.join(o(k,d) for k in v)}]"
-  if isa(v, tuple): return f"({', '.join(o(k,d) for k in v)})"
+  if d: v=d
+  if isa(v, (int, float)): return f"{round(v, dec):,}"
+  if isa(v, list):  return f"[{', '.join(o(k,dec) for k in v)}]"
+  if isa(v, tuple): return f"({', '.join(o(k,dec) for k in v)})"
   if callable(v):   return v.__name__
   if hasattr(v, "__dict__"): v = vars(v)
-  if isa(v, dict): return "{"+ " ".join(f":{k} {o(v[k],d)}" for k in v) +"}"
+  if isa(v, dict): return "{"+ " ".join(f":{k} {o(v[k],dec)}" for k in v) +"}"
   return str(v)
 
 def coerce(s):
@@ -94,36 +94,45 @@ def csv(fileName):
       if (l:=l.split("%")[0].strip()): 
         yield [coerce(x) for x in l.split(",")]
 
+def shuffle(lst): random.shuffle(lst); return lst
+
 ### Main -----------------------------------------------------------------------
-def xai(data): return _xai(data,data,1e32,"")
+def xai(data):
+  def select(rule, row):
+    x = row[rule.at]
+    if x == "?" or rule.xlo == rule.xhi == x: return True
+    return rule.xlo <= x < rule.xhi
 
-def _xai(data,best,b4,suffix):
-  if (rows := sorted(best.rows, key=lambda row: disty(data,row))):
-    print(len(rows), disty(data,rows[len(rows)//2]), suffix)
-    if 4 < len(rows) < b4:
-      n = int(sqrt(len(rows)))
-      cut = bestCut(data, clone(data, rows[:n]), clone(data, rows[n:]))
-      _xai(data, 
-           clone(data, [r for r in rows if cut.op(r[cut.at], cut.cut)]),
-           len(best.rows),
-           o((cut.txt, cut.op, cut.cut)))
+  def go(rows, lvl, prefix=""):
+    ys = Num(); [add(ys, disty(data, row)) for row in rows]
+    print(f"{o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    rule = cut(data, rows)
+    if rule:
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {rule.xlo}..{rule.xhi} ")
 
-file = sys.argv[1] if len(sys.argv)>1 else "data.csv"
+  go(data.rows, 0)
 
-print(";; csv -----------")
-for i,row in enumerate(csv(file)): 
-  if i % 40 ==0: print(i,row)
+#------------------------------------------------------------------------------
+def go__csv(file):
+  for i,row in enumerate(csv(file)): 
+    if i % 40 ==0: print(i,row)
 
-print(";; data -----------")
-for col in Data(csv(file)).cols.x: print(o(col))
+def go__data(file): 
+  for col in Data(csv(file)).cols.x: print(o(col))
 
-print(";; clone -----------")
-clone(Data(csv(file)))
+def go__clone(file): clone(Data(csv(file)))
 
-print(";; disty ------------")
-data=Data(csv(file))
-for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: print(row)
+def go__disty(file):
+  data=Data(csv(file))
+  for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
+    print(row)
 
-print(";; xai -----------")
-xai(Data(csv(file)))
+def go__xai(file): xai(Data(csv(file)))
 
+if __name__ == "__main__":
+  for n, s in enumerate(sys.argv):
+    if fn := vars().get(f"go{s.replace('-', '_')}"): 
+      print("# "+ fn.__name__)
+      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
