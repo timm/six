@@ -85,26 +85,25 @@ def _aha(col,a,b):
   return abs(a - b)
 
 def near(data):
-  x = lambda d, r: distx(data, mid(d), r)
-  y = disty
+  y, x = (lambda d, r: disty(d, r)), (lambda d, r: distx(data, mid(d), r))
   rows = shuffle(data.rows[:])
-  train, test = rows[:len(rows)//2], rows[len(rows)//2:]
-  labeled = clone(data, train[:the.warm])
-  tmp = sorted(labeled.rows, key=lambda r: y(labeled, r))
-  best, rest = clone(data, tmp[:len(tmp)//2]), clone(data, tmp[len(tmp)//2:])
+  grow, test = rows[:len(rows)//2], rows[len(rows)//2:]
+  seen = clone(data, grow[:the.warm])
+  pool = sorted(seen.rows, key=lambda r: y(seen, r))
+  best, rest = clone(data, pool[:the.warm//2]), clone(data, pool[the.warm//2:])
 
-  for r in train[the.warm:the.budget]:
-    add(labeled, r) 
-    if x(best, r) < x(rest, r) and y(labeled, r) < y(labeled, best.rows[-1]):
+  for r in grow[the.warm:the.budget]:
+    add(seen, r) 
+    if x(best, r) < x(rest, r) and y(seen, r) < y(seen, best.rows[-1]):
       add(best, r)
-      best.rows.sort(key=lambda r: y(labeled, r))
-      if best.n > labeled.n**0.5:
-        add(rest, sub(best, best.rows.pop())) 
+      best.rows.sort(key=lambda r: y(seen, r))
+      if best.n > seen.n**0.5:
+        add(rest, sub(best, best.rows.pop()))
 
   test.sort(key=lambda r: x(best, r) - x(rest, r))
   out = min(test[:the.test], key=lambda r: y(data, r))
   return out, y(data, out)
-
+ 
 ## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
   isa = isinstance
