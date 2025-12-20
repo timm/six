@@ -76,4 +76,13 @@ push: ## commit to main
 		-o - $^ | ps2pdf - $@
 	open $@
 
+~/tmp/xai.log:  ## run on many files
+	$(MAKE) todo=xai files="$(Top)/../moot/optimize/*/*.csv" run | tee $@ 
+
+run:
+	@mkdir -p ~/tmp
+	time ls -r $(files) \
+	  | xargs -P 24 -n 1 -I{} sh -c 'python3 -B xai.py -f "{}" --$(todo)'
+
+
 

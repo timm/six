@@ -77,24 +77,23 @@ def _complete(col, lst):
   return lst
 
 ### Main ---------------------------------------------------------------------
-def xai(data):
+def xai(data,file=""):
+  print(o(seed=SEED,bins=BINS,file=file))
+  print(*data.cols.names)
   def select(rule, row):
     if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
     return rule.xlo <= x < rule.xhi
 
   def go(rows, lvl=0, prefix=""):
     ys = Num(); 
-    tmp = sorted(shuffle(rows)[:BUDGET], 
-                 key=lambda row: add(ys, disty(data, row)))
-    print(f"{o(tmp[len(tmp)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    rule = cut(clone(data,shuffle(tmp)), shuffle(tmp))
+    rows = sorted(rows, key=lambda row: add(ys, disty(data, row)))
+    print(f"{o(rows[len(rows)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    rule = cut(data, rows)
     if rule:
       now = [row for row in rows if select(rule, row)]
       if 4 < len(now) < len(rows):
         go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
 
-  print(o(seed=SEED,budget=BUDGET,bins=BINS))
-  print(*data.cols.names)
   go(data.rows, 0)
 
 ## Lib -----------------------------------------------------------------------
@@ -163,7 +162,7 @@ def go__disty(file):
 def go__xai(file): 
   "--xai FILE      can we succinctly list main effects in a table?"
   random.seed(SEED)
-  xai(Data(csv(file)))
+  xai(Data(csv(file)), file)
 
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):
