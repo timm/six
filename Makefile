@@ -49,12 +49,12 @@ push: ## commit to main
 		--file-align=virtual       \
 		--line-numbers=1            \
 		--pro=color                  \
-		--lines-per-page=120          \
+		--lines-per-page=130          \
 		--left-title=""                 \
 		--borders=no                     \
 	  --right-footer="page %s. of %s#"  \
-		--landscape                        \
-		--columns 3                         \
+		--portrait                        \
+		--columns 2                         \
 		-M letter                            \
 		-o - $^ | ps2pdf - $@
 	open $@

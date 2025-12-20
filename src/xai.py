@@ -1,4 +1,6 @@
 #!/usr/bin/env python3 -B
+"""xai.py: stuff
+(c) 2025 Tim Menzies, MIT license"""
 import ast,sys,random
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
@@ -7,7 +9,7 @@ BIG=1e32
 BINS=7
 BUDGET=30
 SEED=1
-### Constructors --------------------------------------------------------------
+### Constructors -------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
 def Num(): return obj(it=Num, n=0, mu=0, m2=0)
 
@@ -29,7 +31,7 @@ def Data(rows=None):
 
 def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
 
-### Functions -------------------------------------------------------------------
+### Functions ----------------------------------------------------------------
 def add(it,v):
   if v=="?": return v
   it.n += 1
@@ -74,7 +76,28 @@ def _complete(col, lst):
       b.xhi = lst[i+1].xlo if i < len(lst)-1 else BIG
   return lst
 
-## Lib -------------------------------------------------------------------------
+### Main ---------------------------------------------------------------------
+def xai(data):
+  def select(rule, row):
+    if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
+    return rule.xlo <= x < rule.xhi
+
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); 
+    tmp = sorted(shuffle(rows)[:BUDGET], 
+                 key=lambda row: add(ys, disty(data, row)))
+    print(f"{o(tmp[len(tmp)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    rule = cut(clone(data,shuffle(tmp)), shuffle(tmp))
+    if rule:
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+
+  print(o(seed=SEED,budget=BUDGET,bins=BINS))
+  print(*data.cols.names)
+  go(data.rows, 0)
+
+## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
   isa = isinstance
   if d: v=d
@@ -98,53 +121,51 @@ def csv(fileName):
 
 def shuffle(lst): random.shuffle(lst); return lst
 
-### Main -----------------------------------------------------------------------
-def xai(data):
-  def select(rule, row):
-    if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
-    return rule.xlo <= x < rule.xhi
+#-----------------------------------------------------------------------------
+def go_h(): 
+  "-h              show help"
+  print(__doc__,"\n\nOptions:\n")
+  for k,fun in globals().items():
+    if k.startswith("go_"): print("  "+fun.__doc__)
 
-  def go(rows, lvl=0, prefix=""):
-    ys = Num(); 
-    tmp = sorted(shuffle(rows)[:BUDGET], 
-                 key=lambda row: add(ys, disty(data, row)))
-    print(f"{o(tmp[len(tmp)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    rule = cut(clone(data,shuffle(tmp)), shuffle(tmp))
-    if rule:
-      now = [row for row in rows if select(rule, row)]
-      if 4 < len(now) < len(rows):
-        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+def go_s(s): 
+  "-s [1]          set random seed "
+  global SEED; SEED=coerce(s); random.seed(SEED)
+def go_b(s): 
+  "-b [5]          set number of bins used on discretization"
+  global BINS; BINS=coerce(s)
 
-  print(o(seed=SEED,budget=BUDGET,bins=BINS))
-  print(*data.cols.names)
-  go(data.rows, 0)
-
-#------------------------------------------------------------------------------
-def go_s(s): global SEED; SEED=coerce(s); random.seed(SEED)
-def go_b(s): global BINS; BINS=coerce(s)
-def go_B(s): global BUDGET;  BUDGET=coerce(s)
+def go_B(s): 
+  "-B [30]         set rows labelled each round"
+  global BUDGET;  BUDGET=coerce(s)
 
 def go__csv(file):
+  "--csv FILE      test csv loading"
   for i,row in enumerate(csv(file)): 
     if i % 40 ==0: print(i,row)
 
 def go__data(file): 
+  "--data FILE     test ading columns from file"
   for col in Data(csv(file)).cols.x: print(o(col))
 
-def go__clone(file): clone(Data(csv(file)))
+def go__clone(file): 
+  "--clone FILE    test echoing structure of a table to a new table"
+  data1 =  Data(csv(file))
+  data2 = cline(data1,data1,rows)
+  assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
 def go__disty(file):
+  "--disty FILE    can we sort rows by their distance to heaven?"
   data=Data(csv(file))
   for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
     print(row)
 
 def go__xai(file): 
+  "--xai FILE      can we succinctly list main effects in a table?"
   random.seed(SEED)
   xai(Data(csv(file)))
 
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"): 
-      print("# "+ fn.__name__)
       fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
-
