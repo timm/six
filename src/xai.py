@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -B
-"""xai.py: stuff
+"""xai.py: explainable multi-objective optimzation
 (c) 2025 Tim Menzies, MIT license"""
 import ast,sys,random
 from math import sqrt,exp,floor
