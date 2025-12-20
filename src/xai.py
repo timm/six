@@ -9,6 +9,7 @@ BIG=1e32
 BINS=7
 BUDGET=30
 SEED=1
+
 ### Constructors -------------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
 def Num(): return obj(it=Num, n=0, mu=0, m2=0)
@@ -77,24 +78,37 @@ def _complete(col, lst):
   return lst
 
 ### Main ---------------------------------------------------------------------
-def xai(data,file=""):
-  print(o(seed=SEED,bins=BINS,file=file))
-  print(*data.cols.names)
-  def select(rule, row):
-    if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
-    return rule.xlo <= x < rule.xhi
+def select(rule, row):
+  if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
+  return rule.xlo <= x < rule.xhi
 
+def xai(data):
+  print(o(bins=BINS))
+  print(*data.cols.names)
   def go(rows, lvl=0, prefix=""):
-    ys = Num(); 
-    rows = sorted(rows, key=lambda row: add(ys, disty(data, row)))
+    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
     print(f"{o(rows[len(rows)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    rule = cut(data, rows)
-    if rule:
+    if rule := cut(data, rows):
       now = [row for row in rows if select(rule, row)]
       if 4 < len(now) < len(rows):
         go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
-
   go(data.rows, 0)
+
+def six(data):
+  seen = clone(data)
+  unique=set()
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
+    some = shuffle(rows)[:BUDGET]
+    for row in some:
+      add(seen,row)
+      unique.add(tuple(row))
+    if rule := cut(seen, some):
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        return go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+    return int(100*ys.mu)
+  return go(data.rows, 0)
 
 ## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
@@ -128,14 +142,15 @@ def go_h():
     if k.startswith("go_"): print("  "+fun.__doc__)
 
 def go_s(s): 
-  "-s [1]          set random seed "
+  "-s [1]          set random SEED "
   global SEED; SEED=coerce(s); random.seed(SEED)
+
 def go_b(s): 
-  "-b [5]          set number of bins used on discretization"
+  "-b [5]          set number of BINS used on discretization"
   global BINS; BINS=coerce(s)
 
 def go_B(s): 
-  "-B [30]         set rows labelled each round"
+  "-B [30]         set BUDGET for rows labelled each round"
   global BUDGET;  BUDGET=coerce(s)
 
 def go__csv(file):
@@ -161,8 +176,16 @@ def go__disty(file):
 
 def go__xai(file): 
   "--xai FILE      can we succinctly list main effects in a table?"
-  random.seed(SEED)
-  xai(Data(csv(file)), file)
+  print("\n"+file)
+  xai(Data(csv(file)))
+
+def go__six(file): 
+  "--six FILE      redo xai, but in each loop, just read BUDGET rows"
+  xai(Data(csv(file))); print(" ")
+  go_s(SEED)
+  for b in [5,10,20,30]:
+    go_B(b)
+    print(b,sorted(six(Data(csv(file))) for _ in range(20)))
 
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):

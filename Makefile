@@ -50,12 +50,12 @@ push: ## commit to main
 		--line-numbers=1            \
 		--pro=color                  \
 		--lines-per-page=130          \
-		--left-title=""                 \
+		--left-title=""                \
 		--borders=no                     \
 	  --right-footer="page %s. of %s#"  \
-		--portrait                        \
-		--columns 2                         \
-		-M letter                            \
+		--portrait                         \
+		--columns 2                          \
+		-M letter                             \
 		-o - $^ | ps2pdf - $@
 	open $@
 
@@ -66,7 +66,7 @@ push: ## commit to main
 		--line-numbers=1            \
 		--pro=color                  \
 		--lines-per-page=120          \
-		--pretty=../etc/lua.ssh         \
+		--pretty=../etc/lua.ssh        \
 		--left-title=""                 \
 		--borders=no                     \
 	  --right-footer="page %s. of %s#"  \
@@ -77,12 +77,8 @@ push: ## commit to main
 	open $@
 
 ~/tmp/xai.log:  ## run on many files
-	$(MAKE) todo=xai files="$(Top)/../moot/optimize/*/*.csv" run | tee $@ 
+	$(MAKE) todo=xai files="$(HOME)/gits/moot/optimize/*/*.csv" run | tee $@ 
 
 run:
 	@mkdir -p ~/tmp
-	time ls -r $(files) \
-	  | xargs -P 24 -n 1 -I{} sh -c 'python3 -B xai.py -f "{}" --$(todo)'
-
-
-
+	time ls -r $(files) | xargs -P 24 -n 1 -I{} sh -c 'python3 -B xai.py --$(todo)  "{}"'
