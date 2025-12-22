@@ -85,7 +85,8 @@ def _aha(col,a,b):
   return abs(a - b)
 
 def near(data):
-  y, x = (lambda d, r: disty(d, r)), (lambda d, r: distx(data, mid(d), r))
+  y = disty
+  x = lambda d, r: distx(data, mid(d), r)
   rows = shuffle(data.rows[:])
   grow, test = rows[:len(rows)//2], rows[len(rows)//2:]
   seen = clone(data, grow[:the.warm])
@@ -94,16 +95,72 @@ def near(data):
 
   for r in grow[the.warm:the.budget]:
     add(seen, r) 
-    if x(best, r) < x(rest, r) and y(seen, r) < y(seen, best.rows[-1]):
+    if x(best, r) < x(rest, r):
       add(best, r)
-      best.rows.sort(key=lambda r: y(seen, r))
       if best.n > seen.n**0.5:
+        best.rows.sort(key=lambda r: y(seen, r))
         add(rest, sub(best, best.rows.pop()))
 
   test.sort(key=lambda r: x(best, r) - x(rest, r))
   out = min(test[:the.test], key=lambda r: y(data, r))
   return out, y(data, out)
  
+## Cutting -------------------------------------------------------------------
+def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
+
+def cut(data, rows):
+  all = (one for col in data.cols.x for one in cuts(col, rows, data))
+  return min(all, key=lambda one: score(one.y), default=None)
+
+def cuts(col, rows, data):
+  if len(rows) < the.leaves: return []
+  d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
+  for x, y in sorted(xys):
+    k = x if Sym is col.it else floor(the.bins * norm(col, x))
+    if k not in d: d[k] = obj(at=col.at, txt=col.txt, xlo=x, xhi=x, y=Num())
+    add(d[k].y, y)
+    d[k].xhi = x
+  return _complete(col, sorted(d.values(), key=lambda b: b.xlo))
+
+def _complete(col, lst):
+  if Num is col.it:
+    for i, b in enumerate(lst):
+      b.xlo = lst[i-1].xhi if i > 0 else -BIG
+      b.xhi = lst[i+1].xlo if i < len(lst)-1 else BIG
+  return lst
+
+## Trees -------------------------------------------------------------------
+def tree(data, rows=None, lvl=0, how=None, isYes=True):
+  rows = rows or data.rows
+  node = obj(mu=adds([disty(data,r) for r in rows]).mu, isYes=isYes
+             how=how, lvl=lvl, n=len(rows), kids[])
+  if rule := cut(data, rows):
+    yes,no = [],[]
+    [(yes if select(rule,r) else no).append(r) for r in rows] 
+    if len(yes) > the.leaves and len(no) > the.leaves:
+      node.kids += [tree(data, yes, lvl+1, how=rule, isYes=True)]
+      node.kids += [tree(data, no,  lvl+1, how=rule, isYes=False)]
+  return node
+
+def ruleSelect(rule, row):
+  if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
+  return rule.xlo <= x < rule.xhi
+
+def rulesShow(t, lvl=0):
+  if not y.yes and not t.no: return print(f"{t.mu:.2f} ({t.n})")
+  op, val = ("<", f"{t.val:.2f}") if t.rule.xlo != t.rule.xhi else ("==",t.val)
+  print(f"{t.col.of} {op} {val}")
+  print(f"{'| '*(lvl+1)}yes: ", end=""); rulesShow(t.yes, lvl+1)
+  print(f"{'| '*(lvl+1)}no:  ", end=""); rulesShow(t.no, lvl+1)
+
+def ruleShow(rule):
+  if rule.xlo == rule.xhi: return f"{rule.txt} == {rule.xlo}"
+  if rule.xhi == BIG     : return f"{rule.txt} >= {rule.xlo}"
+  if rule.xlo == BIG     : return f"{rule.txt} < {rule.xhi}"
+  return f"{rule.xlo} <= {rule.txt} < {rule.xhi}"
+
+
+
 ## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
   isa = isinstance

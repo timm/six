@@ -53,8 +53,8 @@ push: ## commit to main
 		--left-title=""                \
 		--borders=no                     \
 	  --right-footer="page %s. of %s#"  \
-		--portrait                         \
-		--columns 2                          \
+		--landscape                         \
+		--columns 3                          \
 		-M letter                             \
 		-o - $^ | ps2pdf - $@
 	open $@
