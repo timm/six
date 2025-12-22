@@ -25,34 +25,25 @@ def Cols(names):
              y = [col for col in cols if col.txt[-1] in "+-"])
 
 def Data(rows=None): 
-   return adds(rows, obj(it=Data, rows=[], n=0, cols=None, _mid=None))
+   data = obj(it=Data, rows=[], n=0, cols=None)
+   [add(data,row) for row in rows or []]
+   return data
 
 def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
 
 ### Functions ----------------------------------------------------------------
-def adds(src, it=None):
-  it = it or Num()
-  [add(it,v) for v in src]
-  return it
+def sub(x, v): return add(x, v, inc=False)
 
-def sub(it,v): return add(it,v,-1)
-
-def add(it, v, inc=1):
+def add(x, v, inc=True):
   if v=="?": return v
-  it.n += inc
-  if   Sym is it.it: it.has[v] = inc + it.has.get(v,0)
-  elif Num is it.it:
-    if inc < 0 and it.n < 2: it.n = it.mu = it.sd = it.m2 = 0
-    else:
-      d     = v - it.mu
-      it.mu += inc * d / it.n
-      it.m2 += inc * d * (v - it.mu)
-  elif Data is it.it:
-    if it.cols: 
-      it._mid = None
-      v = [add(c, v[c.at], inc) for c in it.cols.all] 
-      (it.rows.append if inc > 0 else it.rows.remove)(v)
-    else: it.cols = Cols(v)
+  x.n += 1
+  if   Sym is x.it: x.has[v] = inc + x.has.get(v,0) 
+  elif Num is x.it: d = v - x.mu; x.mu += inc*d/x.n; x.m2 += inc*d*(v - x.mu)  
+  elif Data is x.it: 
+    if x.cols: 
+          [add(col,v[col.at],inc) for col in x.cols.all]
+          (x.rows.append if inc else x.rows.remove)(v)
+    else: x.cols = Cols(v); x.n=0
   return v
 
 def norm(num,n): 
@@ -60,13 +51,10 @@ def norm(num,n):
   return 1 / (1 + exp(-1.7 * max(-3, min(3, z))))
 
 def sd(num): 
-  return 1e-32 + (0 if num.n < 2 else sqrt(num.m2/(num.n - 1 )))
+  return 1/BIG + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
 
-def mids(data): 
-  if not data._mid: data._mid = [mid(col) for col in data.cols.all]
-  return data._mid
-
-def mid(col): return col.mu if Num is col.it else max(col.has,key=col.has.get)
+def mids(data): return [mid(col) for col in data.cols.all]
+def mid(col)  : return col.mu if Num is col.it else max(col.has, key=col.has.get)
 
 def disty(data,row):
   ys = data.cols.y
@@ -84,36 +72,33 @@ def _aha(col,a,b):
   b = b if b != "?" else (0 if a>0.5 else 1)
   return abs(a - b)
 
-def near(data):
-  y = disty
-  x = lambda d, r: distx(data, mid(d), r)
-  rows = shuffle(data.rows[:])
-  grow, test = rows[:len(rows)//2], rows[len(rows)//2:]
-  seen = clone(data, grow[:the.warm])
-  pool = sorted(seen.rows, key=lambda r: y(seen, r))
-  best, rest = clone(data, pool[:the.warm//2]), clone(data, pool[the.warm//2:])
+def sample(data,rows):
+  out = clone(data, rows[:the.warm])
+  out.rows.sorted(key=lambda r: disty(out,r))
+  best = clone(data, out.rows[:the.warm//2])
+  rest = clone(data, out.rows[the.warm//2:])
+  bmid, rmid = mids(best), mids(rest)
 
-  for r in grow[the.warm:the.budget]:
-    add(seen, r) 
-    if x(best, r) < x(rest, r):
-      add(best, r)
-      if best.n > seen.n**0.5:
-        best.rows.sort(key=lambda r: y(seen, r))
-        add(rest, sub(best, best.rows.pop()))
+  for r in rows[the.want:the.budget]:
+    add(out,r)
+    if distx(seem,r,bmid) < distx(out,r,mid):
+       add(best,r)
+       if best.b > out.n**0.5:
+         best.rows.sort(key=lambda r:disty(out,r))
+         add(rest, sub(best, best.rows[-1]))
+         rmid = mids(rest)
+       bmid = mids(best)
+  out.rows.sort(key=lambda r:disty(out,r))
+  return out
 
-  test.sort(key=lambda r: x(best, r) - x(rest, r))
-  out = min(test[:the.test], key=lambda r: y(data, r))
-  return out, y(data, out)
- 
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
 
 def cut(data, rows):
-  all = (one for col in data.cols.x for one in cuts(col, rows, data))
-  return min(all, key=lambda one: score(one.y), default=None)
+  all_bins = (b for col in data.cols.x for b in cuts(col, rows, data))
+  return min(all_bins, key=lambda b: score(b.y), default=None)
 
 def cuts(col, rows, data):
-  if len(rows) < the.leaves: return []
   d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
   for x, y in sorted(xys):
     k = x if Sym is col.it else floor(the.bins * norm(col, x))
@@ -129,37 +114,38 @@ def _complete(col, lst):
       b.xhi = lst[i+1].xlo if i < len(lst)-1 else BIG
   return lst
 
-## Trees -------------------------------------------------------------------
-def tree(data, rows=None, lvl=0, how=None, isYes=True):
-  rows = rows or data.rows
-  node = obj(mu=adds([disty(data,r) for r in rows]).mu, isYes=isYes
-             how=how, lvl=lvl, n=len(rows), kids[])
-  if rule := cut(data, rows):
-    yes,no = [],[]
-    [(yes if select(rule,r) else no).append(r) for r in rows] 
-    if len(yes) > the.leaves and len(no) > the.leaves:
-      node.kids += [tree(data, yes, lvl+1, how=rule, isYes=True)]
-      node.kids += [tree(data, no,  lvl+1, how=rule, isYes=False)]
-  return node
-
-def ruleSelect(rule, row):
+### Main ---------------------------------------------------------------------
+def select(rule, row):
   if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
   return rule.xlo <= x < rule.xhi
 
-def rulesShow(t, lvl=0):
-  if not y.yes and not t.no: return print(f"{t.mu:.2f} ({t.n})")
-  op, val = ("<", f"{t.val:.2f}") if t.rule.xlo != t.rule.xhi else ("==",t.val)
-  print(f"{t.col.of} {op} {val}")
-  print(f"{'| '*(lvl+1)}yes: ", end=""); rulesShow(t.yes, lvl+1)
-  print(f"{'| '*(lvl+1)}no:  ", end=""); rulesShow(t.no, lvl+1)
+def xai(data):
+  print(o(the))
+  print(*data.cols.names)
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
+    print(f"{o(rows[len(rows)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    if rule := cut(data, rows):
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+  go(data.rows, 0)
 
-def ruleShow(rule):
-  if rule.xlo == rule.xhi: return f"{rule.txt} == {rule.xlo}"
-  if rule.xhi == BIG     : return f"{rule.txt} >= {rule.xlo}"
-  if rule.xlo == BIG     : return f"{rule.txt} < {rule.xhi}"
-  return f"{rule.xlo} <= {rule.txt} < {rule.xhi}"
-
-
+def six(data):
+  seen = clone(data)
+  unique=set()
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
+    some = shuffle(rows)[:the.budget]
+    for row in some:
+      add(seen,row)
+      unique.add(tuple(row))
+    if rule := cut(seen, some):
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        return go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+    return int(100*ys.mu)
+  return go(data.rows, 0)
 
 ## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
