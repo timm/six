@@ -91,6 +91,7 @@ def acquire(data,rows):
         add(rest, sub(best, best.rows[-1]))
         rmid = mids(rest)
       bmid = mids(best)
+  out.rows.sort(key=y)
   return out
 
 ## Cutting -------------------------------------------------------------------
