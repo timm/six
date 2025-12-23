@@ -72,23 +72,25 @@ def _aha(col,a,b):
   b = b if b != "?" else (0 if a>0.5 else 1)
   return abs(a - b)
 
-def sample(data,rows):
+def acquire(data,rows):
   out = clone(data, rows[:the.warm])
-  out.rows.sorted(key=lambda r: disty(out,r))
+  y   = lambda r:disty(out,r)
+  x   = lambda r1,r2:distx(out,r1,r2)
+  out.rows.sorted(key=y)
   best = clone(data, out.rows[:the.warm//2])
-  rest = clone(data, out.rows[the.warm//2:])
+  rest = clone(data, out.rows[the.warm//2:the.warm])
   bmid, rmid = mids(best), mids(rest)
 
-  for r in rows[the.want:the.budget]:
+  for r in rows[the.want:]:
+    if out.n >= the.budget: break
     add(out,r)
-    if distx(seem,r,bmid) < distx(out,r,mid):
-       add(best,r)
-       if best.b > out.n**0.5:
-         best.rows.sort(key=lambda r:disty(out,r))
-         add(rest, sub(best, best.rows[-1]))
-         rmid = mids(rest)
-       bmid = mids(best)
-  out.rows.sort(key=lambda r:disty(out,r))
+    if x(r,bmid) < x(r,rmid):
+      add(best,r)
+      if best.b > out.n**0.5:
+        best.rows.sort(key=y)
+        add(rest, sub(best, best.rows[-1]))
+        rmid = mids(rest)
+      bmid = mids(best)
   return out
 
 ## Cutting -------------------------------------------------------------------
