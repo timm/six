@@ -5,12 +5,13 @@ import ast,sys,random
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 
-ATOM = str | bool | int | float
+MAYBE="?"
+ATOM = str | int | float | MAYBE
 ROW  = list[ATOM]
 ROWS = list[ROW]
-NUM, SYM, DATA = obj,obj,obj
+NUM, SYM, DATA = obj,obj,obj 
 COL  = NUM | SYM
-I    = COL | DATA
+THING = COL | DATA
 
 BIG=1e32
 the=obj(bins=7, budget=30, seed=1)
@@ -31,13 +32,14 @@ def Cols(names): # (list[str]) -> Cols
              y=[col for col in cols if col.txt[-1] in "+-"])
 
 def Data(rows=None): 
-   data = obj(it=Data, rows=[], n=0, cols=None, _centroid=None)
-   [add(data,row) for row in rows or []]
-   return data
+  return adds(rows, obj(it=Data, rows=[], n=0, cols=None, _centroid=None))
 
-def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
+def clone(data, rows=None): return adds(rows, Data([data.cols.names]))
 
 ### Functions ----------------------------------------------------------------
+def adds(src, i=None): # (src:Iterable, ?i) -> i
+  i = i or Num(); [add(i,v) for v in src]; return i
+
 def sub(i, v): return add(i, v, inc=False)
 
 def add(i, v, inc=True):
@@ -54,8 +56,7 @@ def add(i, v, inc=True):
   return v # convention: always return the thing being added
 
 def norm(num,n): 
-  z = (n - num.mu) / sd(num)
-  return 1 / (1 + exp(-1.7 * max(-3, min(3, z))))
+  z = (n - num.mu) / sd(num); return 1 / (1 + exp(-1.7 * max(-3, min(3, z))))
 
 def sd(num): 
   return 1/BIG + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
@@ -83,19 +84,20 @@ def _aha(col,u,v):
   return abs(u - v)
 
 def peeking(data,rows): # best if rows shuffled
-  both = clone(data, rows[:the.warm])
-  both.rows.sorted(key= lambda r: disty(both,r))
-  best = clone(both, both.rows[:the.warm//2])
-  rest = clone(both, both.rows[the.warm//2:])
-  rank = lambda r: distx(both,r,mids(best)) - distx(both, r,mids(rest))
-  for r in rows[the.warm:]:
-    if both.n >= the.budget: break
-    elif rank(r) < 0: # i.e. closer to best than rest
-      add(both, add(best,r))
-      if best.b > both.n**0.5:
-        best.rows.sorted(key= lambda r:disty(both,r))
-        add(rest, sub(best, best.rows[-1]))
-  return obj(model=model, labelled=sorted(both.rows,key=rank))
+  d  = clone(data, rows[:the.warm])
+  y  = lambda r: disty(d,rows)
+  d.rows.sorted(key=y)
+  a  = clone(d, d.rows[:the.warm//2])
+  z  = clone(d, d.rows[the.warm//2:])
+  fn = lambda row: distx(d, row, mids(a)) - distx(d, row, mids(z))
+  for row in rows[the.warm:]:
+    if d.n >= the.budget: break
+    elif fn(row) < 0: # i.e. closer to a than z
+      add(d, add(a,row))
+      if a.b > d.n**0.5:
+        a.rows.sorted(key=y)
+        add(z, sub(a, a.rows[-1]))
+  return obj(model=fn, labelled=sorted(d.rows,key=fn))
 
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
