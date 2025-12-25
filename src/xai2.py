@@ -5,8 +5,14 @@ import ast,sys,random
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 
-BIG=1e32
+ATOM = str | bool | int | float
+ROW  = list[ATOM]
+ROWS = list[ROW]
+NUM, SYM, DATA = obj,obj,obj
+COL  = NUM | SYM
+I    = COL | DATA
 
+BIG=1e32
 the=obj(bins=7, budget=30, seed=1)
 
 ### Constructors -------------------------------------------------------------
@@ -18,11 +24,11 @@ def Col(at=0, txt=" "):
   col.at, col.txt, col.best = at, txt, 0 if txt[-1]=="-" else 1
   return col
 
-def Cols(names):
-  cols = [Col(i,s) for i,s in enumerate(names)]
+def Cols(names): # (list[str]) -> Cols
+  cols = [Col(n,s) for n,s in enumerate(names)]
   return obj(it=Cols, names=names, all=cols,
-             x = [col for col in cols if col.txt[-1] not in "+-X"],
-             y = [col for col in cols if col.txt[-1] in "+-"])
+             x=[col for col in cols if col.txt[-1] not in "+-X"],
+             y=[col for col in cols if col.txt[-1] in "+-"])
 
 def Data(rows=None): 
    data = obj(it=Data, rows=[], n=0, cols=None, _centroid=None)
@@ -32,19 +38,19 @@ def Data(rows=None):
 def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
 
 ### Functions ----------------------------------------------------------------
-def sub(x, v): return add(x, v, inc=False)
+def sub(i, v): return add(i, v, inc=False)
 
-def add(x, v, inc=True):
+def add(i, v, inc=True):
   if v!="?": 
-    if Data is x.it and not x.cols: x.cols = Cols(v) # initializing, not adding
+    if Data is i.it and not i.cols: i.cols = Cols(v) # initializing, not adding
     else:
-      x.n += 1 # adding
-      if   Sym  is x.it: x.has[v] = inc + x.has.get(v,0) 
-      elif Num  is x.it: d = v-x.mu; x.mu += inc*d/x.n; x.m2 += inc*d*(v-x.mu)  
+      i.n += 1 # adding
+      if   Sym is i.it: i.has[v] = inc + i.has.get(v,0) 
+      elif Num is i.it: d = v-i.mu; i.mu += inc*d/i.n; i.m2 += inc*d*(v-i.mu)  
       else:
-        x._centroid = None # old centroid now out of date
-        [add(col,v[col.at],inc) for col in x.cols.all] # recursive add to cols
-        (x.rows.append if inc else x.rows.remove)(v)   # handle row storage
+        i._centroid = None # old centroid now out of date
+        [add(col,v[col.at],inc) for col in i.cols.all] # recursive add to cols
+        (i.rows.append if inc else i.rows.remove)(v)   # handle row storage
   return v # convention: always return the thing being added
 
 def norm(num,n): 
@@ -68,13 +74,13 @@ def distx(data,row1,row2):
   xs = data.cols.x
   return sqrt(sum(_aha(x, row1[x.at], row2[x.at]_*2) for x in xs) / len(xs))
 
-def _aha(col,a,b):
-  if a==b=="?": return 1
-  if Sym is col.it : return a != b
-  a,b = norm(col,a), norm(col,b)
-  a = a if a != "?" else (0 if b>0.5 else 1)
-  b = b if b != "?" else (0 if a>0.5 else 1)
-  return abs(a - b)
+def _aha(col,u,v):
+  if u==v=="?": return 1
+  if Sym is col.it : return u != v
+  u,v = norm(col,u), norm(col,v)
+  u = u if u != "?" else (0 if v>0.5 else 1)
+  v = v if v != "?" else (0 if u>0.5 else 1)
+  return abs(u - v)
 
 def peeking(data,rows): # best if rows shuffled
   both = clone(data, rows[:the.warm])
@@ -109,9 +115,9 @@ def cuts(col, rows, data):
 
 def _complete(col, lst):
   if Num is col.it:
-    for i, b in enumerate(lst):
-      b.xlo = lst[i-1].xhi if i > 0 else -BIG
-      b.xhi = lst[i+1].xlo if i < len(lst)-1 else BIG
+    for n, b in enumerate(lst):
+      b.xlo = lst[n-1].xhi if n > 0 else -BIG
+      b.xhi = lst[n+1].xlo if n < len(lst)-1 else BIG
   return lst
 
 ### Main ---------------------------------------------------------------------
@@ -198,8 +204,8 @@ def go__all(file):
 
 def go__csv(file):
   "--csv FILE      test csv loading"
-  for i,row in enumerate(csv(file)): 
-    if i % 40 ==0: print(i,row)
+  for n,row in enumerate(csv(file)): 
+    if n % 40 ==0: print(n,row)
 
 def go__data(file): 
   "--data FILE     test ading columns from file"
