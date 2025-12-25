@@ -25,7 +25,7 @@ def Cols(names):
              y = [col for col in cols if col.txt[-1] in "+-"])
 
 def Data(rows=None): 
-   data = obj(it=Data, rows=[], n=0, cols=None)
+   data = obj(it=Data, rows=[], n=0, cols=None, _centroid=None)
    [add(data,row) for row in rows or []]
    return data
 
@@ -35,16 +35,17 @@ def clone(data, rows=None): return Data([data.cols.names] + (rows or []))
 def sub(x, v): return add(x, v, inc=False)
 
 def add(x, v, inc=True):
-  if v=="?": return v
-  x.n += 1
-  if   Sym is x.it: x.has[v] = inc + x.has.get(v,0) 
-  elif Num is x.it: d = v - x.mu; x.mu += inc*d/x.n; x.m2 += inc*d*(v - x.mu)  
-  elif Data is x.it: 
-    if x.cols: 
-          [add(col,v[col.at],inc) for col in x.cols.all]
-          (x.rows.append if inc else x.rows.remove)(v)
-    else: x.cols = Cols(v); x.n=0
-  return v
+  if v!="?": 
+    if Data is x.it and not x.cols: x.cols = Cols(v) # initializing, not adding
+    else:
+      x.n += 1 # adding
+      if   Sym  is x.it: x.has[v] = inc + x.has.get(v,0) 
+      elif Num  is x.it: d = v-x.mu; x.mu += inc*d/x.n; x.m2 += inc*d*(v-x.mu)  
+      elif Data is x.it:
+        x._centroid = None # old centroid now out of date
+        [add(col,v[col.at],inc) for col in x.cols.all] # recursive add to cols
+        (x.rows.append if inc else x.rows.remove)(v)   # handle row storage
+  return v # convention: always return the thing being added
 
 def norm(num,n): 
   z = (n - num.mu) / sd(num)
@@ -53,8 +54,11 @@ def norm(num,n):
 def sd(num): 
   return 1/BIG + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
 
-def mids(data): return [mid(col) for col in data.cols.all]
-def mid(col)  : return col.mu if Num is col.it else max(col.has, key=col.has.get)
+def mid(col): return col.mu if Num is col.it else max(col.has, key=col.has.get)
+
+def mids(data): 
+  data._centroid = data._centroid or [mid(col) for col in data.cols.all]
+  return data._centroid
 
 def disty(data,row):
   ys = data.cols.y
@@ -72,27 +76,20 @@ def _aha(col,a,b):
   b = b if b != "?" else (0 if a>0.5 else 1)
   return abs(a - b)
 
-def acquire(data,rows):
-  out = clone(data, rows[:the.warm])
-  y   = lambda r:disty(out,r)
-  x   = lambda r1,r2:distx(out,r1,r2)
-  out.rows.sorted(key=y)
-  best = clone(data, out.rows[:the.warm//2])
-  rest = clone(data, out.rows[the.warm//2:the.warm])
-  bmid, rmid = mids(best), mids(rest)
-
-  for r in rows[the.want:]:
-    if out.n >= the.budget: break
-    add(out,r)
-    if x(r,bmid) < x(r,rmid):
-      add(best,r)
-      if best.b > out.n**0.5:
-        best.rows.sort(key=y)
+def peeking(data,rows): # best if rows shuffled
+  both = clone(data, rows[:the.warm])
+  both.rows.sorted(key= lambda r: disty(both,r))
+  best = clone(both, both.rows[:the.warm//2])
+  rest = clone(both, both.rows[the.warm//2:])
+  rank = lambda r: distx(both,r,mids(best)) - distx(both, r,mids(rest))
+  for r in rows[the.warm:]:
+    if both.n >= the.budget: break
+    elif rank(r) < 0: # i.e. closer to best than rest
+      add(both, add(best,r))
+      if best.b > both.n**0.5:
+        best.rows.sorted(key= lambda r:disty(both,r))
         add(rest, sub(best, best.rows[-1]))
-        rmid = mids(rest)
-      bmid = mids(best)
-  out.rows.sort(key=y)
-  return out
+  return obj(model=model, labelled=sorted(both.rows,key=rank))
 
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
