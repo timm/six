@@ -41,7 +41,7 @@ def add(x, v, inc=True):
       x.n += 1 # adding
       if   Sym  is x.it: x.has[v] = inc + x.has.get(v,0) 
       elif Num  is x.it: d = v-x.mu; x.mu += inc*d/x.n; x.m2 += inc*d*(v-x.mu)  
-      elif Data is x.it:
+      else:
         x._centroid = None # old centroid now out of date
         [add(col,v[col.at],inc) for col in x.cols.all] # recursive add to cols
         (x.rows.append if inc else x.rows.remove)(v)   # handle row storage
