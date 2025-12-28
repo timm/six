@@ -5,8 +5,7 @@ import ast,sys,random
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 
-MAYBE="?"
-ATOM = str | int | float | MAYBE
+ATOM = str | int | float 
 ROW  = list[ATOM]
 ROWS = list[ROW]
 NUM, SYM, DATA = obj,obj,obj 
@@ -16,7 +15,7 @@ THING = COL | DATA
 BIG=1e32
 the=obj(bins=7, budget=30, seed=1)
 
-### Constructors -------------------------------------------------------------
+### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
 def Num(): return obj(it=Num, n=0, mu=0, m2=0)
 
@@ -73,7 +72,7 @@ def disty(data,row):
 
 def distx(data,row1,row2):
   xs = data.cols.x
-  return sqrt(sum(_aha(x, row1[x.at], row2[x.at]_*2) for x in xs) / len(xs))
+  return sqrt(sum(_aha(x, row1[x.at], row2[x.at])**2 for x in xs) / len(xs))
 
 def _aha(col,u,v):
   if u==v=="?": return 1
@@ -98,7 +97,7 @@ def peeking(data,rows):            # best if rows arrived shuffled
       if a.n > sqrt(d.n): # too many best things
         a.rows.sorted(key=y)
         add(z, sub(a, a.rows[-1])) # demote worse row in best to rest
-  d.rows.sort(key=x))
+  d.rows.sort(key=x)
   return obj(model=x, labelled=d)
 
 ## Cutting -------------------------------------------------------------------
@@ -170,72 +169,76 @@ def o(v=None, dec=2,**d):
   return str(v)
 
 def coerce(s):
-  try: return ast.literal_eval(s)
-  except: return s
+  try: return int(s)
+  except:
+    try: return float(s)
+    except: return s.strip()
 
 def csv(fileName):
   with open(fileName,encoding="utf-8") as f:
     for l in f:
       if (l:=l.split("%")[0].strip()): 
-        yield [coerce(x.strip()) for x in l.split(",")]
+        yield [coerce(x) for x in l.split(",")]
 
 def shuffle(lst): random.shuffle(lst); return lst
 
 #-----------------------------------------------------------------------------
-def go_h(): 
+def go_h(_=None): 
   "-h              show help"
   print(__doc__,"\n\nOptions:\n")
-  for k,fun in globals().items():
-    if k.startswith("go_"): print("  "+fun.__doc__)
+  for k,f in globals().items():
+    if k.startswith("go_"):
+      d = f.__defaults__
+      print("  "+f.__doc__+(f" (default {d[0]})" if d else ""))
 
-def go_s(s): 
-  "-s [1]          set random SEED "
+def go_s(s=1): 
+  "-s INT          set random SEED "
   the.seed = coerce(s); random.seed(the.seed)
 
-def go_b(s): 
-  "-b [5]          set number of BINS used on discretization"
+def go_b(s=5): 
+  "-b INT          set number of BINS used on discretization"
   the.bins = coerce(s)
 
 def go_B(s): 
-  "-B [30]         set BUDGET for rows labelled each round"
+  "-B INT          set BUDGET for rows labelled each round"
   the.budget = coerce(s)
 
-def go__all(file):
+def go__all(file="data.csv"):
   "--all FILE      run all actions that use a FILE"
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all": 
       print("\n#",k,"------------"); fun(file)
 
-def go__csv(file):
+def go__csv(file="data.csv"):
   "--csv FILE      test csv loading"
   for n,row in enumerate(csv(file)): 
     if n % 40 ==0: print(n,row)
 
-def go__data(file): 
+def go__data(file="data.csv"): 
   "--data FILE     test ading columns from file"
   data =  Data(csv(file))
   print(*data.cols.names)
   for col in data.cols.x: print(o(col))
 
-def go__clone(file): 
+def go__clone(file="data.csv"): 
   "--clone FILE    test echoing structure of a table to a new table"
   data1 =  Data(csv(file))
   data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
-def go__disty(file):
+def go__disty(file="data.csv"):
   "--disty FILE    can we sort rows by their distance to heaven?"
   data=Data(csv(file))
   print(*data.cols.names)
   for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
     print(*row)
 
-def go__xai(file): 
+def go__xai(file="data.csv"): 
   "--xai FILE      can we succinctly list main effects in a table?"
   print("\n"+file)
   xai(Data(csv(file)))
 
-def go__six(file): 
+def go__six(file="data.csv"): 
   "--six FILE      redo xai, but in each loop, just read BUDGET rows"
   xai(Data(csv(file))); print(" ")
   go_s(the.seed)
@@ -246,4 +249,4 @@ def go__six(file):
 if __name__ == "__main__":
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"): 
-      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
+      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn(None)
