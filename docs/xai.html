@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XAI 2.0 Docs</title>
+<title>XAI Framework Documentation</title>
 <style>
     /* VARIABLES & THEME */
     :root {
@@ -13,10 +13,11 @@
         --text-head: #0f172a; /* slate-900 */
         --text-muted: #64748b;/* slate-500 */
         --primary: #4f46e5;   /* indigo-600 */
+        --primary-hover: #4338ca;
         --primary-light: #e0e7ff; /* indigo-100 */
         --border: #e2e8f0;    /* slate-200 */
         --code-bg: #1e293b;   /* slate-800 */
-        --code-text: #e2e8f0;
+        --code-text: #f1f5f9;
         --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     }
 
@@ -27,6 +28,7 @@
         --text-head: #f1f5f9;
         --text-muted: #94a3b8;
         --primary: #818cf8;
+        --primary-hover: #6366f1;
         --primary-light: #312e81;
         --border: #334155;
         --code-bg: #020617;
@@ -35,7 +37,7 @@
 
     /* BASE STYLES */
     body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background-color: var(--bg);
         color: var(--text-main);
         margin: 0;
@@ -46,64 +48,79 @@
         overflow: hidden;
     }
 
-    a { color: var(--primary); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--primary-hover); text-decoration: underline; }
 
-    /* HEADER */
+    /* LAYOUT */
     header {
         background: var(--card-bg);
         border-bottom: 1px solid var(--border);
-        padding: 0 1.5rem;
         height: 64px;
         flex-shrink: 0;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        padding: 0 1.5rem;
+        gap: 1.5rem;
         z-index: 10;
-        overflow-x: auto;
     }
 
     .brand {
-        font-weight: 700;
+        font-weight: 800;
         font-size: 1.25rem;
         color: var(--text-head);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-right: 2rem;
         white-space: nowrap;
+        margin-right: auto;
     }
     .brand span { color: var(--primary); }
-    .badge {
-        font-size: 0.75rem;
-        background: var(--primary-light);
-        color: var(--primary);
-        padding: 2px 8px;
-        border-radius: 99px;
-        font-family: monospace;
-    }
 
-    nav { display: flex; gap: 0.5rem; height: 100%; }
-    nav a {
+    /* NAVIGATION */
+    nav {
+        display: flex;
+        gap: 0.5rem;
+        height: 100%;
+        overflow-x: auto;
+    }
+    
+    nav button {
         background: none;
         border: none;
         border-bottom: 2px solid transparent;
         color: var(--text-muted);
         font-weight: 600;
-        cursor: pointer;
-        padding: 0 0.75rem;
-        height: 100%;
-        transition: all 0.2s;
         font-size: 0.9rem;
+        padding: 0 1rem;
+        height: 100%;
+        cursor: pointer;
+        transition: all 0.2s;
         white-space: nowrap;
-        display: flex;
-        align-items: center;
     }
-    nav a:hover { color: var(--primary); text-decoration: none; }
-    nav a.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
+
+    nav button:hover { color: var(--primary); }
+    nav button.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* UTILITIES */
+    .controls { display: flex; gap: 0.75rem; align-items: center; }
+    
+    .search-box {
+        position: relative;
     }
+    .search-box input {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        width: 160px;
+        transition: width 0.2s;
+    }
+    .search-box input:focus { outline: 2px solid var(--primary-light); width: 220px; }
+
+    .theme-toggle {
+        background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0.25rem;
+        border-radius: 4px; color: var(--text-muted);
+    }
+    .theme-toggle:hover { background: var(--bg); color: var(--text-head); }
 
     /* MAIN CONTENT */
     main {
@@ -114,39 +131,22 @@
     }
 
     .container {
-        max-width: 900px;
+        max-width: 960px;
         margin: 0 auto;
-        min-height: calc(100vh - 150px);
         display: flex;
         flex-direction: column;
+        gap: 2rem;
     }
 
-    /* TYPOGRAPHY */
-    h1 { font-size: 1.8rem; color: var(--text-head); margin: 0 0 1.5rem 0; }
-    h2 { font-size: 1.4rem; color: var(--text-head); margin: 2rem 0 1rem 0; }
-    h3 { font-size: 1.1rem; color: var(--text-head); margin: 0 0 0.5rem 0; font-weight: 600; }
-    p { margin-bottom: 1rem; }
-    
-    code {
-        font-family: "JetBrains Mono", Consolas, monospace;
-        font-size: 0.85em;
-        background: var(--primary-light);
-        color: var(--primary);
-        padding: 0.2em 0.4em;
-        border-radius: 4px;
-    }
+    /* SECTIONS & TABS */
+    section { display: none; animation: fade 0.25s ease-out; }
+    section.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    pre {
-        background: var(--code-bg);
-        color: var(--code-text);
-        padding: 1.25rem;
-        border-radius: 0.75rem;
-        overflow-x: auto;
-        font-family: "JetBrains Mono", Consolas, monospace;
-        font-size: 0.9rem;
-        border: 1px solid var(--border);
-        margin-bottom: 1.5rem;
-    }
+    h1 { font-size: 2rem; color: var(--text-head); margin: 0 0 1rem 0; letter-spacing: -0.025em; }
+    h2 { font-size: 1.5rem; color: var(--text-head); margin: 2rem 0 1rem 0; letter-spacing: -0.025em; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    h3 { font-size: 1.15rem; color: var(--text-head); margin: 1.5rem 0 0.75rem 0; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+    p { margin-bottom: 1rem; max-width: 70ch; }
 
     /* CARDS */
     .card {
@@ -154,265 +154,369 @@
         border: 1px solid var(--border);
         border-radius: 0.75rem;
         padding: 1.5rem;
-        margin-bottom: 1.5rem;
         box-shadow: var(--shadow);
+        margin-bottom: 1.5rem;
     }
     
-    .card-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border);
+    .card.highlight { border: 1px solid var(--primary); }
+
+    /* CODE BLOCKS */
+    pre {
+        background: var(--code-bg);
+        color: var(--code-text);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 0.85rem;
+        position: relative;
+        margin: 1rem 0;
     }
-    
-    .icon-box {
-        width: 32px; height: 32px;
-        border-radius: 6px;
+
+    code {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 0.85em;
         background: var(--primary-light);
         color: var(--primary);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
+        padding: 0.15em 0.3em;
+        border-radius: 4px;
+    }
+    
+    pre code { background: none; color: inherit; padding: 0; }
+
+    .copy-btn {
+        position: absolute;
+        top: 0.5rem; right: 0.5rem;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: var(--code-text);
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    pre:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: rgba(255,255,255,0.2); }
+
+    /* LISTS & TABLES */
+    ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.5rem; }
+
+    .api-list { list-style: none; padding: 0; }
+    .api-item {
+        border-bottom: 1px solid var(--border);
+        padding: 1rem 0;
+    }
+    .api-item:last-child { border-bottom: none; }
+    
+    .signature {
+        font-family: "JetBrains Mono", monospace;
+        color: var(--primary);
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.5rem;
+        word-break: break-all;
+    }
+    
+    .desc { color: var(--text-main); font-size: 0.95rem; }
+    .type-def {
+        font-size: 0.8rem;
+        background: var(--bg);
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+        font-family: "JetBrains Mono", monospace;
     }
 
-    /* TABLES / LISTS */
-    .cli-list { list-style: none; padding: 0; }
-    .cli-list li { margin-bottom: 1rem; display: grid; grid-template-columns: 140px 1fr; gap: 1rem; }
-    .cli-list dt { font-family: monospace; font-weight: bold; color: var(--primary); }
-    .cli-list dd { margin: 0; font-size: 0.95rem; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { text-align: left; color: var(--text-muted); padding: 0.75rem 1rem; background: var(--bg); border-bottom: 1px solid var(--border); }
-    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-main); }
-    tr:last-child td { border-bottom: none; }
-
-    /* UTILS */
-    .tab-content { display: none; animation: fade 0.3s; flex: 1; }
-    .tab-content.active { display: block; }
-    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
-
-    #theme-toggle {
-        background: var(--bg); border: 1px solid var(--border); padding: 6px 12px;
-        border-radius: 6px; color: var(--text-main); cursor: pointer; font-size: 0.8rem; margin-left: 1rem;
-    }
-
-    footer {
-        margin-top: auto; padding-top: 2rem; border-top: 1px solid var(--border);
-        text-align: center; font-size: 0.8rem; color: var(--text-muted);
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+        header { flex-direction: column; height: auto; padding: 1rem; align-items: stretch; }
+        .controls { justify-content: space-between; margin-top: 1rem; }
+        nav { margin-top: 1rem; padding-bottom: 0.5rem; }
+        .search-box input { width: 100%; }
+        .search-box input:focus { width: 100%; }
     }
 </style>
 </head>
-<body>
+<body data-theme="light">
 
 <header>
-    <div class="brand">
-        Seven <span>XAI</span> <span class="badge">v2.1</span>
-    </div>
+    <div class="brand">XAI <span>Framework</span></div>
     <nav>
-        <a href="#overview" onclick="setTab('overview')" id="nav-overview" class="active">Overview</a>
-        <a href="#tutorials" onclick="setTab('tutorials')" id="nav-tutorials">Tutorials</a>
-        <a href="#how-to" onclick="setTab('how-to')" id="nav-how-to">How-To</a>
-        <a href="#reference" onclick="setTab('reference')" id="nav-reference">Reference</a>
-        <a href="#explanation" onclick="setTab('explanation')" id="nav-explanation">Explanation</a>
-        <a href="#about" onclick="setTab('about')" id="nav-about">About</a>
+        <button onclick="switchTab('overview')" class="active" id="btn-overview">Overview</button>
+        <button onclick="switchTab('tutorials')" id="btn-tutorials">Tutorials</button>
+        <button onclick="switchTab('how-to')" id="btn-how-to">How-To</button>
+        <button onclick="switchTab('reference')" id="btn-reference">Reference</button>
+        <button onclick="switchTab('explanation')" id="btn-explanation">Explanation</button>
+        <button onclick="switchTab('about')" id="btn-about">About</button>
     </nav>
-    <button id="theme-toggle" onclick="toggleTheme()">🌗 Theme</button>
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search docs..." onkeyup="filterContent()">
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle Theme">🌗</button>
+    </div>
 </header>
 
 <main>
     <div class="container">
 
-        <section id="overview" class="tab-content active">
-            <div class="card">
-                <div class="card-header"><div class="icon-box">🔭</div><h3>Introduction</h3></div>
-                
-                <p><strong>Welcome to Seven XAI.</strong></p>
-                <p>Seven XAI is a lightweight, standalone Python 3 framework designed to democratize data analysis. It provides a simple yet powerful way to explore datasets, automatically generating human-readable "rules" that describe optimization paths. Whether you are minimizing errors or maximizing performance, Seven XAI finds the specific conditions in your data that lead to the best outcomes.</p>
-                
-                <p>Unlike complex black-box models, Seven XAI prioritizes <strong>interpretability</strong>. It doesn't just give you a prediction; it tells you <em>why</em>, using clear logic like <code>Age &lt; 30</code> or <code>Dosage &gt; 50</code>.</p>
-
-                <h4 style="margin-top: 2rem; color: var(--primary);">What is XAI?</h4>
-                <p><strong>Explainable Artificial Intelligence (XAI)</strong> refers to a set of processes and methods that allows human users to comprehend and trust the results and output created by machine learning algorithms. XAI is used to describe an AI model, its expected impact, and potential biases.</p>
-                <p>In the context of this tool, XAI means moving away from opaque scores and towards transparent, actionable rules that domain experts can validate and understand immediately.</p>
-            </div>
-
-            <div class="card">
-                <div class="card-header"><div class="icon-box">📝</div><h3>Citing this work</h3></div>
-                
-                <p>If you use Seven XAI in your research or project, please use the following citations.</p>
-
-                <h4>BibTeX</h4>
-                <pre>@software{sevenxai2025,
-  author = {Timm},
-  title = {Seven XAI: A Lightweight Explanation Framework},
-  year = {2025},
-  url = {http://timm.fyi},
-  version = {2.1}
-}</pre>
-
-                <h4>AMA Reference</h4>
-                <p style="background: var(--bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--border); font-family: 'Times New Roman', serif;">
-                    Timm. Seven XAI: A Lightweight Explanation Framework [Computer software]. Version 2.1. http://timm.fyi. Published 2025.
-                </p>
-            </div>
-        </section>
-
-        <section id="tutorials" class="tab-content">
-            <div class="card">
-                <div class="card-header"><div class="icon-box">🎓</div><h3>Getting Started</h3></div>
-                <p>In this tutorial, we will set up the XAI environment and analyze a small dataset to find optimization rules. XAI finds conditions (e.g., <code>Age &lt; 30</code>) that predict better outcomes.</p>
-                
-                <h4>Step 1: Installation</h4>
-                <p>XAI is a standalone Python 3 script. Download it and make it executable.</p>
-                <pre>chmod +x xai2.py
-./xai2.py -h</pre>
-
-                <h4>Step 2: Create Data</h4>
-                <p>Create a <code>data.csv</code> file. Columns ending in <code>+</code> are maximized, <code>-</code> minimized, <code>X</code> ignored.</p>
-                <pre>NameX, Age, Salary+, Error-
-Tim,   45,  50000,   0.1
-Sue,   22,  60000,   0.05
-Bob,   35,  40000,   0.2</pre>
-                
-                <h4>Step 3: Run Analysis</h4>
-                <p>Run the analysis to find rules that separate the "best" rows from the rest.</p>
-                <pre>./xai2.py --xai data.csv</pre>
-            </div>
-        </section>
-
-        <section id="how-to" class="tab-content">
-            <div class="card">
-                <div class="card-header"><div class="icon-box">🛠️</div><h3>Common Tasks</h3></div>
-                
-                <h4>How to check for result stability</h4>
-                <p>To verify if rules are robust, run the analysis 20 times using random subsampling (budget constraints).</p>
-                <pre>./xai2.py --six data.csv</pre>
-
-                <h4>How to sort data by quality</h4>
-                <p>To see which rows are considered "best" (closest to heaven), use the <code>disty</code> command.</p>
-                <pre>./xai2.py --disty data.csv</pre>
-
-                <h4>How to debug a CSV file</h4>
-                <p>If your file fails to load, use <code>--data</code> to check column stats (mean/count).</p>
-                <pre>./xai2.py --data my_file.csv</pre>
-            </div>
-        </section>
-
-        <section id="reference" class="tab-content">
+        <section id="overview" class="active">
+            <h1>Explainable Multi-Objective Optimization</h1>
+            <p class="lead">A lightweight, standalone Python 3 framework for data analysis that prioritizes interpretability over black-box prediction.</p>
             
             <div class="card">
-                <div class="card-header"><div class="icon-box">💻</div><h3>CLI Reference</h3></div>
-                
-                <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">Configuration Flags</h4>
-                <ul class="cli-list">
-                    <li><dt>-h</dt><dd>Show help and defaults.</dd></li>
-                    <li><dt>-s INT</dt><dd>Set random seed (default: 1).</dd></li>
-                    <li><dt>-b INT</dt><dd>Set bin count (default: 7).</dd></li>
-                    <li><dt>-B INT</dt><dd>Set budget (default: 30).</dd></li>
+                <h3>🔍 What is this?</h3>
+                <p><strong>XAI</strong> (Explainable AI) is a script that analyzes datasets to find "rules" that optimize multiple objectives simultaneously. Instead of outputting a complex mathematical formula, it outputs simple human-readable rules like <code>Age &lt; 30</code>.</p>
+                <p>It includes tools for:</p>
+                <ul>
+                    <li><strong>Statistical Analysis:</strong> Calculating means, standard deviations, and distributions.</li>
+                    <li><strong>Discretization:</strong> converting continuous values into distinct bins.</li>
+                    <li><strong>Rule Induction:</strong> Recursively finding data splits that maximize "heavenly" outcomes.</li>
                 </ul>
-
-                <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-top:2rem;">Action Commands</h4>
-                <ul class="cli-list">
-                    <li><dt>--xai FILE</dt><dd>Run main analysis.</dd></li>
-                    <li><dt>--six FILE</dt><dd>Run stability test (N=20).</dd></li>
-                    <li><dt>--disty FILE</dt><dd>Sort rows by goal distance.</dd></li>
-                    <li><dt>--csv FILE</dt><dd>Test CSV loading.</dd></li>
-                    <li><dt>--data FILE</dt><dd>Test adding columns from file.</dd></li>
-                    <li><dt>--clone FILE</dt><dd>Test table structure replication.</dd></li>
-                    <li><dt>--all FILE</dt><dd>Run all actions.</dd></li>
-                </ul>
-            </div>
-
-            <div class="card">
-                <div class="card-header"><div class="icon-box">📚</div><h3>API Reference</h3></div>
-                <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem;">Data structures implemented as <code>SimpleNamespace</code> objects.</p>
-                
-                <div class="grid-2">
-                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #4f46e5;">
-                        <h4 style="margin-top:0; color:#4f46e5;">DATA</h4>
-                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
-                            <li><code>rows</code> List of data rows.</li>
-                            <li><code>cols</code> Column metadata object.</li>
-                            <li><code>n</code> Row count.</li>
-                            <li><code>_centroid</code> Cached midpoints.</li>
-                        </ul>
-                    </div>
-
-                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #f59e0b;">
-                        <h4 style="margin-top:0; color:#f59e0b;">NUM</h4>
-                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
-                            <li><code>n</code> Item count.</li>
-                            <li><code>mu</code> Mean value.</li>
-                            <li><code>m2</code> Sum of squared differences.</li>
-                        </ul>
-                    </div>
-
-                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #10b981;">
-                        <h4 style="margin-top:0; color:#10b981;">SYM</h4>
-                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
-                            <li><code>n</code> Item count.</li>
-                            <li><code>has</code> Dictionary of {value: count}.</li>
-                        </ul>
-                    </div>
-
-                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid var(--text-muted);">
-                        <h4 style="margin-top:0; color:var(--text-muted);">the</h4>
-                        <p style="font-size:0.9rem; margin:0;">Global configuration object holding runtime settings (seed, bins, budget).</p>
-                    </div>
-                </div>
             </div>
         </section>
 
-        <section id="explanation" class="tab-content">
-            <div class="card">
-                <div class="card-header"><div class="icon-box">🧠</div><h3>Core Concepts</h3></div>
-                
-                <h4>Sigmoid Normalization</h4>
-                <p>XAI uses a Sigmoid transformation based on <code>mu</code> and <code>sd()</code> to simulate a CDF. This maps values to probabilities ($0 \dots 1$) robustly.</p>
-                <pre>norm = 1 / (1 + exp(-1.7 * z_score))</pre>
+        <section id="tutorials">
+            <h1>Getting Started</h1>
+            <p>Follow this guide to set up the environment and run your first analysis.</p>
 
-                <h4>AHA Distance</h4>
-                <p>Calculates distance between heterogeneous rows.</p>
-                <table>
-                    <thead><tr><th>Type</th><th>Logic</th><th>Impl</th></tr></thead>
+            <article class="card">
+                <h3>1. Installation</h3>
+                <p>XAI is a single-file Python script. It requires <strong>Python 3</strong>. No external libraries (like pandas or numpy) are needed.</p>
+                <pre><code>chmod +x xai2.py
+./xai2.py -h</code></pre>
+            </article>
+
+            <article class="card">
+                <h3>2. Preparing Data</h3>
+                <p>Create a CSV file (e.g., <code>data.csv</code>). The first row must define column names. Use suffixes to define column types:</p>
+                <ul>
+                    <li><code>Name</code>: Standard identifier.</li>
+                    <li><code>Age</code>: Numeric independent variable.</li>
+                    <li><code>Salary+</code>: Numeric goal to <strong>maximize</strong> (+).</li>
+                    <li><code>Error-</code>: Numeric goal to <strong>minimize</strong> (-).</li>
+                    <li><code>RegionX</code>: Column to <strong>ignore</strong> (X).</li>
+                </ul>
+                <pre><code>Name, Age, Salary+, Error-
+Alice, 25, 50000, 0.1
+Bob, 35, 60000, 0.05
+Charlie, 45, 80000, 0.2</code></pre>
+            </article>
+
+            <article class="card">
+                <h3>3. Running Analysis</h3>
+                <p>Use the <code>--xai</code> flag to generate an explanation tree.</p>
+                <pre><code>./xai2.py --xai data.csv</code></pre>
+                
+                <p><strong>Interpreting Output:</strong></p>
+                <pre><code>{bins:7, budget:30, seed:1}  <-- Configuration
+Name Age Salary+ Error-       <-- Columns
+{mu:0.52 n:398 sd:0.15}       <-- Global Stats (mean distance to goals)
+|.. age 10..22 {mu:0.21 n:20 sd:0.05} </code></pre>
+                <p>The tree shows that rows where <code>age</code> is between 10 and 22 have a much lower (better) distance to the goal (0.21) compared to the global average (0.52).</p>
+            </article>
+        </section>
+
+        <section id="how-to">
+            <h1>Common Tasks</h1>
+
+            <div class="card">
+                <h3>How to ensure reproducible results</h3>
+                <p>The framework uses a random number generator for shuffling rows. To get identical results every time, set the seed using <code>-s</code>.</p>
+                <pre><code>./xai2.py -s 12345 --xai data.csv</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>How to change the granularity of rules</h3>
+                <p>If the rules generated are too broad or too specific, adjust the bin size (discretization buckets) using <code>-b</code>. The default is 5 (via CLI) or 7 (internally).</p>
+                <pre><code>./xai2.py -b 10 --xai data.csv</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>How to debug CSV loading</h3>
+                <p>If your analysis fails, use the <code>--data</code> or <code>--csv</code> commands to verify the file is parsing correctly.</p>
+                <pre><code>./xai2.py --csv data.csv   # Prints raw rows
+./xai2.py --data data.csv  # Prints column statistics</code></pre>
+            </div>
+            
+            <div class="card">
+                <h3>How to run stability checks</h3>
+                <p>To see if the rules hold up under random sampling, use the <code>--six</code> command. This runs the analysis 20 times with a limited budget.</p>
+                <pre><code>./xai2.py --six data.csv</code></pre>
+            </div>
+        </section>
+
+        <section id="reference">
+            <h1>Reference</h1>
+            
+            <h2>CLI Commands</h2>
+            <div class="card">
+                <p>Arguments are parsed via reflection on functions starting with <code>go_</code>.</p>
+                <table style="width:100%; text-align:left; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border);">
+                            <th style="padding: 0.5rem;">Flag</th>
+                            <th style="padding: 0.5rem;">Arguments</th>
+                            <th style="padding: 0.5rem;">Description</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        <tr><td><strong>Sym</strong></td><td>Match/NoMatch</td><td><code>u != v</code></td></tr>
-                        <tr><td><strong>Num</strong></td><td>Normalized Delta</td><td><code>abs(n(u) - n(v))</code></td></tr>
+                        <tr><td><code>-h</code></td><td>None</td><td>Show help and options.</td></tr>
+                        <tr><td><code>-s</code></td><td>INT</td><td>Set random SEED (default 1).</td></tr>
+                        <tr><td><code>-b</code></td><td>INT</td><td>Set number of BINS used on discretization (default 5).</td></tr>
+                        <tr><td><code>-B</code></td><td>INT</td><td>Set BUDGET for rows labelled each round.</td></tr>
+                        <tr><td><code>--all</code></td><td>FILE</td><td>Run all actions that use a FILE.</td></tr>
+                        <tr><td><code>--csv</code></td><td>FILE</td><td>Test csv loading.</td></tr>
+                        <tr><td><code>--data</code></td><td>FILE</td><td>Test adding columns from file.</td></tr>
+                        <tr><td><code>--clone</code></td><td>FILE</td><td>Test echoing structure of a table to a new table.</td></tr>
+                        <tr><td><code>--disty</code></td><td>FILE</td><td>Sort rows by their distance to heaven.</td></tr>
+                        <tr><td><code>--xai</code></td><td>FILE</td><td>Succinctly list main effects in a table.</td></tr>
+                        <tr><td><code>--six</code></td><td>FILE</td><td>Redo xai, but in each loop, just read BUDGET rows.</td></tr>
                     </tbody>
                 </table>
             </div>
 
+            <h2>API Documentation</h2>
             <div class="card">
-                <div class="card-header"><div class="icon-box">🐍</div><h3>Python Idioms</h3></div>
-                <dl class="cli-list">
-                    <li><dt>obj</dt><dd>Alias for <code>SimpleNamespace</code>.</dd></li>
-                    <li><dt>Lazy Init</dt><dd><code>i = i or Num()</code> pattern.</dd></li>
-                    <li><dt>Walrus</dt><dd><code>if (l := line.strip()):</code> pattern.</dd></li>
-                    <li><dt>Reflection</dt><dd>CLI flags are routed dynamically by inspecting function names (`go_s` -> `-s`) and docstrings, avoiding `argparse`.</dd></li>
-                </dl>
+                <p>Arguments use type aliases defined in the source code (lines 5-9).</p>
+                <div class="type-def">
+                    ATOM  = str | int | float<br>
+                    ROW   = list[ATOM]<br>
+                    ROWS  = list[ROW]<br>
+                    NUM, SYM, DATA = obj, obj, obj<br>
+                    COL   = NUM | SYM<br>
+                    THING = COL | DATA
+                </div>
+
+                <h3>Core Data Structures</h3>
+                <p>Implemented using <code>types.SimpleNamespace</code> (aliased as <code>obj</code>).</p>
+                <ul class="api-list">
+                    <li class="api-item">
+                        <span class="signature">Sym() -> SYM</span>
+                        <span class="desc">Symbolic column tracker. Keeps a count of distinct values in <code>has</code>.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">Num() -> NUM</span>
+                        <span class="desc">Numeric column tracker. Keeps incremental mean (<code>mu</code>) and second moment (<code>m2</code>).</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">Cols(names: list[str]) -> obj</span>
+                        <span class="desc">Factory. Parses column names. <code>x</code> are independent cols, <code>y</code> are dependent (+/-).</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">Data(rows: ROWS = None) -> DATA</span>
+                        <span class="desc">Main container. Stores rows and column metadata.</span>
+                    </li>
+                </ul>
+
+                <h3 style="margin-top: 2rem;">Functions</h3>
+                <ul class="api-list">
+                    <li class="api-item">
+                        <span class="signature">def adds(src: THING | ROWS, i: THING = None) -> THING</span>
+                        <span class="desc">Batch update. Adds items from <code>src</code> into <code>i</code>. If <code>i</code> is None, infers Data/Num from src.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def add(i: THING, v: ATOM, inc: bool = True) -> None</span>
+                        <span class="desc">Visitor. Updates stats in <code>i</code> with value <code>v</code>. Updates <code>mu</code>/<code>m2</code> for Num, counts for Sym.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def sub(i: THING, v: ATOM) -> ATOM</span>
+                        <span class="desc">Backtracking. Calls <code>add(..., inc=False)</code> to remove <code>v</code> from stats. Returns the value <code>v</code>.</span>
+                    </li>
+                    
+                    <li class="api-item">
+                        <span class="signature">def norm(num: NUM, n: ATOM) -> float</span>
+                        <span class="desc">Normalizes <code>n</code> (0..1) using Sigmoid function based on mean/sd.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def sd(num: NUM) -> float</span>
+                        <span class="desc">Standard Deviation. Calculated from <code>m2</code> (sum of squared differences).</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def mid(col: COL) -> ATOM</span>
+                        <span class="desc">Central tendency. Returns <code>mu</code> for Num, Mode for Sym.</span>
+                    </li>
+
+                    <li class="api-item">
+                        <span class="signature">def disty(data: DATA, row: ROW) -> float</span>
+                        <span class="desc">Returns Euclidean distance of a row's dependent variables (y) to "heaven" (best possible values).</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def distx(data: DATA, row1: ROW, row2: ROW) -> float</span>
+                        <span class="desc">Returns AHA distance between the independent variables (x) of two rows.</span>
+                    </li>
+
+                    <li class="api-item">
+                        <span class="signature">def cut(data: DATA, rows: ROWS) -> tuple[tuple, float]</span>
+                        <span class="desc">Finds the best cut (range) that separates the rows. Returns <code>((cut_lhs, cut_rhs), best_score)</code>.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def score(num: NUM) -> float</span>
+                        <span class="desc">Heuristic for quality. <code>mu + sd / (sqrt(n) + epsilon)</code>.</span>
+                    </li>
+                    <li class="api-item">
+                        <span class="signature">def xai(data: DATA) -> list</span>
+                        <span class="desc">Main driver. Recursively finds rules (cuts) that improve <code>disty</code> scores. Returns the generated rules.</span>
+                    </li>
+                </ul>
             </div>
         </section>
 
-        <section id="about" class="tab-content">
+        <section id="explanation">
+            <h1>Concepts & Architecture</h1>
+            
+            <div class="card">
+                <h3>Sigmoid Normalization</h3>
+                <p>Standard min-max normalization is sensitive to outliers. XAI uses a Sigmoid transformation to map values to probabilities 0...1.</p>
+                <pre><code>z = (n - mu) / sd
+norm = 1 / (1 + exp(-1.7 * z))</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>AHA Distance</h3>
+                <p>The distance between two rows is calculated using the <strong>AHA</strong> logic in <code>distx</code> / <code>_aha</code>:</p>
+                <ul>
+                    <li><strong>Symbolic:</strong> 0 if values match, 1 if they differ.</li>
+                    <li><strong>Numeric:</strong> Absolute difference of normalized values.</li>
+                    <li><strong>Missing Data:</strong> If values are <code>?</code>, assumes maximal distance (1.0).</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>The "Cut" Algorithm</h3>
+                <p>The <code>cut</code> function performs discretization. It converts continuous columns into bins. It evaluates every possible split point to find the range that maximizes the separation of "good" rows from "bad" rows.</p>
+                <p>It uses a custom scoring function: <strong>&mu; + &sigma; / &radic;n</strong> (mean + standard deviation divided by square root of n). This favors clusters with high mean values and low variance.</p>
+            </div>
+        </section>
+
+        <section id="about">
             <h1>About</h1>
-            <p>This documentation was generated using the following detailed prompt specification:</p>
-            <pre style="white-space: pre-wrap; font-size: 0.85rem;">
+            <div class="card">
+                <p><strong>Author:</strong> Tim Menzies</p>
+                <p><strong>License:</strong> MIT</p>
+                <p><strong>Year:</strong> 2025</p>
+                <p><strong>Source:</strong></p>
+            </div>
+
+            <h3>Regeneration Prompt</h3>
+            <p>This documentation was generated using the following prompt:</p>
+            <pre style="white-space: pre-wrap; word-wrap: break-word;">
 **Role:** Expert Technical Writer & Frontend Developer.
 **Task:** Create a single-file, responsive HTML documentation for the provided Python script "[FILENAME]".
 
-**1. Structure (The Diataxis Framework):**
+**1. Structure (The Diataxis Framework + Extras):**
+   - **Overview:** A high-level summary of what the script does and its primary use case.
    - **Tutorials:** A narrative-driven "Getting Started" guide. Start with installation, then creating dummy data, then running a basic command.
    - **How-To:** A collection of recipe-based solutions for specific user goals (e.g., debugging, specific flags, interpreting output).
    - **Reference:** The technical dictionary. 
-     - *CLI:* Document all configuration flags and action commands found by inspecting the code's argument parsing logic (e.g., docstrings of `go_` functions).
-     - *API:* Document the core classes/data structures found in the code.
-   - **Explanation:** Conceptual background (algorithms, math) and architectural design decisions (e.g., specific Python patterns used).
+     - *CLI:* Document all configuration flags and action commands found by inspecting the argument parsing logic.
+     - *API:* Document core classes, methods, and attributes. **Crucial:** You must list the full function signature with explicit Python type hints (e.g., `def my_func(x: int) -> str`) exactly as they appear in the source code.
+   - **Explanation:** Conceptual background (algorithms, math) and architectural design decisions. **Note:** Use Unicode/HTML for math; do NOT use LaTeX/MathJax.
+   - **About:** Project metadata and credits. **Crucial:** You must include a "Regeneration Prompt" subsection here containing the exact prompt used to generate this file, so the user can recreate it.
 
 **2. Content Constraints (Strict Code Reflection):**
    - **Source of Truth:** All content must be derived *strictly* from the provided source code.
@@ -421,59 +525,94 @@ Bob,   35,  40000,   0.2</pre>
      - *Forbidden:* Do NOT hallucinate standard library features or common methods (like `entropy`, `mode`, `min`, `max`) if they are not explicitly defined in the provided file.
    - **Idiom Accuracy:** Accurately describe the coding patterns used (e.g., if the code uses `argparse`, document that; if it uses `sys.argv` or docstring reflection, document that specifically).
 
-**3. Visual Style:**
+**3. Visual Style (Modern & Responsive):**
    - **Theme:** Clean, modern aesthetic (e.g., Slate/Indigo or Gray/Blue palette).
-   - **Layout:** Card-based UI with a sidebar or top navigation bar.
-   - **Responsiveness:** Grid layouts must adapt to mobile screens.
-   - **Interactivity:** Tabs must switch content instantly via vanilla JavaScript (no page reloads).
+   - **Architecture:** Use Semantic HTML5 tags (`&lt;nav&gt;`, `&lt;main&gt;`, `&lt;article&gt;`, `&lt;section&gt;`).
+   - **Layout:** Card-based UI with a sidebar (desktop) or top navigation bar (mobile).
+   - **Responsiveness:** Grid/Flexbox layouts must adapt seamlessly to mobile screens.
+   - **Interactivity:**
+     - Tabs must switch content instantly via vanilla JavaScript (no page reloads).
+     - Include a simple **Search/Filter bar** to quickly find content.
+     - Add **"Copy to Clipboard" buttons** to all code blocks.
    - **Dependencies:** Zero external CSS/JS dependencies (inline everything).
-   - **Features:** Include a generic Dark/Light mode toggle.
+   - **Theming:** Use CSS Variables (`:root { --primary-color: ... }`) to handle colors and the Dark/Light mode toggle.
             </pre>
         </section>
-
-        <footer>
-            &copy; 2025 <a href="http://timm.fyi">timm</a>. Generated by Gemini.
-        </footer>
 
     </div>
 </main>
 
 <script>
-    function setTab(id) {
-        // 1. Update UI (Hide/Show sections)
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
+    // TAB LOGIC
+    function switchTab(tabId) {
+        // Hide all sections
+        document.querySelectorAll('section').forEach(el => el.classList.remove('active'));
+        // Deactivate all nav buttons
+        document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
         
-        // Handle potential errors if ID doesn't exist
-        const content = document.getElementById(id);
-        const nav = document.getElementById('nav-' + id);
+        // Show target
+        document.getElementById(tabId).classList.add('active');
+        document.getElementById('btn-' + tabId).classList.add('active');
         
-        if (content && nav) {
-            content.classList.add('active');
-            nav.classList.add('active');
-        }
-
-        // 2. Update Browser URL Hash (Deep Linking)
-        if (history.pushState) {
-            history.pushState(null, null, '#' + id);
-        } else {
-            location.hash = id;
+        // Deep linking
+        if(history.pushState) {
+            history.pushState(null, null, '#' + tabId);
         }
     }
 
+    // THEME LOGIC
     function toggleTheme() {
         const body = document.body;
         const current = body.getAttribute('data-theme');
         body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
     }
-    
-    // Initial Load: Check hash and load correct tab
-    const initialHash = window.location.hash.substring(1);
-    if (initialHash && document.getElementById(initialHash)) {
-        setTab(initialHash);
+
+    // SEARCH LOGIC
+    function filterContent() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const activeSection = document.querySelector('section.active');
+        
+        if (!activeSection) return;
+
+        // Search within cards and list items in the active section
+        const targets = activeSection.querySelectorAll('.card, .api-item, tr');
+        
+        targets.forEach(el => {
+            const text = el.innerText.toLowerCase();
+            if (text.includes(query)) {
+                el.style.display = "";
+            } else {
+                // Keep table headers visible
+                if(el.tagName === 'TR' && el.querySelector('th')) return;
+                el.style.display = "none";
+            }
+        });
     }
 
-    // Auto-detect system theme preference
+    // COPY BUTTON LOGIC
+    document.querySelectorAll('pre').forEach(pre => {
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.innerText = 'Copy';
+        btn.onclick = () => {
+            const code = pre.querySelector('code');
+            const text = code ? code.innerText : pre.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = 'Copy', 2000);
+            });
+        };
+        pre.appendChild(btn);
+    });
+
+    // INIT
+    // Check URL hash on load
+    const hash = window.location.hash.substring(1);
+    if (hash && document.getElementById(hash)) {
+        switchTab(hash);
+    }
+
+    // System theme detection
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.body.setAttribute('data-theme', 'dark');
     }
