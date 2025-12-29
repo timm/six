@@ -5,8 +5,8 @@ import random, bisect
   
   References:
   1. Cliff's Delta thresholds: Romano, J., Kromrey, J. D., Coraggio, J., & Skowronek, J. (2006). 
-     "Appropriate statistics for ordinal level data: Should we really be using t-test and cohen's d 
-     for evaluating group differences?" Journal of Modern Applied Statistical Methods, 5(2), 24.
+     'Appropriate statistics for ordinal level data: Should we really be using t-test and cohen's d 
+     for evaluating group differences?' Journal of Modern Applied Statistical Methods, 5(2), 24.
   2. KS Test Jitter: The addition of epsilon noise ensures the data is strictly continuous, satisfying 
      the theoretical assumptions of the Kolmogorov distribution (Smirnov, 1948) regarding ties.
 """
