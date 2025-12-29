@@ -172,7 +172,9 @@ def coerce(s):
   try: return int(s)
   except:
     try: return float(s)
-    except: return s.strip()
+    except: 
+      s=s.strip()
+      return {"true":True, "false":False}.get(s,s)
 
 def csv(fileName):
   with open(fileName,encoding="utf-8") as f:
@@ -183,63 +185,66 @@ def csv(fileName):
 def shuffle(lst): random.shuffle(lst); return lst
 
 #-----------------------------------------------------------------------------
-def go_h(_=None): 
-  "-h              show help"
+def go_h(_=None):
+  ": show help"
   print(__doc__,"\n\nOptions:\n")
   for k,f in globals().items():
-    if k.startswith("go_"):
+    if k.startswith("go_") and f.__doc__:
+      left, right = f.__doc__.split(":")
+      left = k[2:].replace("_","-") + " " + left.strip()
       d = f.__defaults__
-      print("  "+f.__doc__+(f" (default {d[0]})" if d else ""))
+      default = f"(default {d[0]})" if d else ""
+      print(f"  {left:15}   {right.strip()} {default}")
 
 def go_s(s=1): 
-  "-s INT          set random SEED "
+  "INT : set random SEED "
   the.seed = coerce(s); random.seed(the.seed)
 
 def go_b(s=5): 
-  "-b INT          set number of BINS used on discretization"
+  "INT : set number of BINS used on discretization"
   the.bins = coerce(s)
 
 def go_B(s): 
-  "-B INT          set BUDGET for rows labelled each round"
+  "INT : set BUDGET for rows labelled each round"
   the.budget = coerce(s)
 
 def go__all(file="data.csv"):
-  "--all FILE      run all actions that use a FILE"
+  "FILE : run all actions that use a FILE"
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all": 
       print("\n#",k,"------------"); fun(file)
 
 def go__csv(file="data.csv"):
-  "--csv FILE      test csv loading"
+  "FILE : test csv loading"
   for n,row in enumerate(csv(file)): 
     if n % 40 ==0: print(n,row)
 
 def go__data(file="data.csv"): 
-  "--data FILE     test ading columns from file"
+  "FILE : test ading columns from file"
   data =  Data(csv(file))
   print(*data.cols.names)
   for col in data.cols.x: print(o(col))
 
 def go__clone(file="data.csv"): 
-  "--clone FILE    test echoing structure of a table to a new table"
+  "FILE : test echoing structure of a table to a new table"
   data1 =  Data(csv(file))
   data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
 def go__disty(file="data.csv"):
-  "--disty FILE    can we sort rows by their distance to heaven?"
+  "FILE : can we sort rows by their distance to heaven?"
   data=Data(csv(file))
   print(*data.cols.names)
   for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]: 
     print(*row)
 
 def go__xai(file="data.csv"): 
-  "--xai FILE      can we succinctly list main effects in a table?"
+  "FILE : can we succinctly list main effects in a table?"
   print("\n"+file)
   xai(Data(csv(file)))
 
 def go__six(file="data.csv"): 
-  "--six FILE      redo xai, but in each loop, just read BUDGET rows"
+  "FILE : redo xai, but in each loop, just read BUDGET rows"
   xai(Data(csv(file))); print(" ")
   go_s(the.seed)
   for b in [5,10,20,30]:

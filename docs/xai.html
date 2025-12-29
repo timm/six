@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAI 2.0 Docs</title>
+<style>
+    /* VARIABLES & THEME */
+    :root {
+        --bg: #f8fafc;        /* slate-50 */
+        --card-bg: #ffffff;
+        --text-main: #334155; /* slate-700 */
+        --text-head: #0f172a; /* slate-900 */
+        --text-muted: #64748b;/* slate-500 */
+        --primary: #4f46e5;   /* indigo-600 */
+        --primary-light: #e0e7ff; /* indigo-100 */
+        --border: #e2e8f0;    /* slate-200 */
+        --code-bg: #1e293b;   /* slate-800 */
+        --code-text: #e2e8f0;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    }
+
+    [data-theme="dark"] {
+        --bg: #0f172a;
+        --card-bg: #1e293b;
+        --text-main: #cbd5e1;
+        --text-head: #f1f5f9;
+        --text-muted: #94a3b8;
+        --primary: #818cf8;
+        --primary-light: #312e81;
+        --border: #334155;
+        --code-bg: #020617;
+        --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+    }
+
+    /* BASE STYLES */
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg);
+        color: var(--text-main);
+        margin: 0;
+        line-height: 1.6;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* HEADER */
+    header {
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+        padding: 0 1.5rem;
+        height: 64px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 10;
+        overflow-x: auto;
+    }
+
+    .brand {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--text-head);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-right: 2rem;
+        white-space: nowrap;
+    }
+    .brand span { color: var(--primary); }
+    .badge {
+        font-size: 0.75rem;
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 2px 8px;
+        border-radius: 99px;
+        font-family: monospace;
+    }
+
+    nav { display: flex; gap: 0.5rem; height: 100%; }
+    nav a {
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text-muted);
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0 0.75rem;
+        height: 100%;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+    }
+    nav a:hover { color: var(--primary); text-decoration: none; }
+    nav a.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+
+    /* MAIN CONTENT */
+    main {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem 1rem;
+        scroll-behavior: smooth;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: 0 auto;
+        min-height: calc(100vh - 150px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* TYPOGRAPHY */
+    h1 { font-size: 1.8rem; color: var(--text-head); margin: 0 0 1.5rem 0; }
+    h2 { font-size: 1.4rem; color: var(--text-head); margin: 2rem 0 1rem 0; }
+    h3 { font-size: 1.1rem; color: var(--text-head); margin: 0 0 0.5rem 0; font-weight: 600; }
+    p { margin-bottom: 1rem; }
+    
+    code {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 0.85em;
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 0.2em 0.4em;
+        border-radius: 4px;
+    }
+
+    pre {
+        background: var(--code-bg);
+        color: var(--code-text);
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        overflow-x: auto;
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 0.9rem;
+        border: 1px solid var(--border);
+        margin-bottom: 1.5rem;
+    }
+
+    /* CARDS */
+    .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow);
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .icon-box {
+        width: 32px; height: 32px;
+        border-radius: 6px;
+        background: var(--primary-light);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    /* TABLES / LISTS */
+    .cli-list { list-style: none; padding: 0; }
+    .cli-list li { margin-bottom: 1rem; display: grid; grid-template-columns: 140px 1fr; gap: 1rem; }
+    .cli-list dt { font-family: monospace; font-weight: bold; color: var(--primary); }
+    .cli-list dd { margin: 0; font-size: 0.95rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; color: var(--text-muted); padding: 0.75rem 1rem; background: var(--bg); border-bottom: 1px solid var(--border); }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-main); }
+    tr:last-child td { border-bottom: none; }
+
+    /* UTILS */
+    .tab-content { display: none; animation: fade 0.3s; flex: 1; }
+    .tab-content.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+    @media (min-width: 768px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+    #theme-toggle {
+        background: var(--bg); border: 1px solid var(--border); padding: 6px 12px;
+        border-radius: 6px; color: var(--text-main); cursor: pointer; font-size: 0.8rem; margin-left: 1rem;
+    }
+
+    footer {
+        margin-top: auto; padding-top: 2rem; border-top: 1px solid var(--border);
+        text-align: center; font-size: 0.8rem; color: var(--text-muted);
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        Seven <span>XAI</span> <span class="badge">v2.1</span>
+    </div>
+    <nav>
+        <a href="#overview" onclick="setTab('overview')" id="nav-overview" class="active">Overview</a>
+        <a href="#tutorials" onclick="setTab('tutorials')" id="nav-tutorials">Tutorials</a>
+        <a href="#how-to" onclick="setTab('how-to')" id="nav-how-to">How-To</a>
+        <a href="#reference" onclick="setTab('reference')" id="nav-reference">Reference</a>
+        <a href="#explanation" onclick="setTab('explanation')" id="nav-explanation">Explanation</a>
+        <a href="#about" onclick="setTab('about')" id="nav-about">About</a>
+    </nav>
+    <button id="theme-toggle" onclick="toggleTheme()">🌗 Theme</button>
+</header>
+
+<main>
+    <div class="container">
+
+        <section id="overview" class="tab-content active">
+            <div class="card">
+                <div class="card-header"><div class="icon-box">🔭</div><h3>Introduction</h3></div>
+                
+                <p><strong>Welcome to Seven XAI.</strong></p>
+                <p>Seven XAI is a lightweight, standalone Python 3 framework designed to democratize data analysis. It provides a simple yet powerful way to explore datasets, automatically generating human-readable "rules" that describe optimization paths. Whether you are minimizing errors or maximizing performance, Seven XAI finds the specific conditions in your data that lead to the best outcomes.</p>
+                
+                <p>Unlike complex black-box models, Seven XAI prioritizes <strong>interpretability</strong>. It doesn't just give you a prediction; it tells you <em>why</em>, using clear logic like <code>Age &lt; 30</code> or <code>Dosage &gt; 50</code>.</p>
+
+                <h4 style="margin-top: 2rem; color: var(--primary);">What is XAI?</h4>
+                <p><strong>Explainable Artificial Intelligence (XAI)</strong> refers to a set of processes and methods that allows human users to comprehend and trust the results and output created by machine learning algorithms. XAI is used to describe an AI model, its expected impact, and potential biases.</p>
+                <p>In the context of this tool, XAI means moving away from opaque scores and towards transparent, actionable rules that domain experts can validate and understand immediately.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="icon-box">📝</div><h3>Citing this work</h3></div>
+                
+                <p>If you use Seven XAI in your research or project, please use the following citations.</p>
+
+                <h4>BibTeX</h4>
+                <pre>@software{sevenxai2025,
+  author = {Timm},
+  title = {Seven XAI: A Lightweight Explanation Framework},
+  year = {2025},
+  url = {http://timm.fyi},
+  version = {2.1}
+}</pre>
+
+                <h4>AMA Reference</h4>
+                <p style="background: var(--bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--border); font-family: 'Times New Roman', serif;">
+                    Timm. Seven XAI: A Lightweight Explanation Framework [Computer software]. Version 2.1. http://timm.fyi. Published 2025.
+                </p>
+            </div>
+        </section>
+
+        <section id="tutorials" class="tab-content">
+            <div class="card">
+                <div class="card-header"><div class="icon-box">🎓</div><h3>Getting Started</h3></div>
+                <p>In this tutorial, we will set up the XAI environment and analyze a small dataset to find optimization rules. XAI finds conditions (e.g., <code>Age &lt; 30</code>) that predict better outcomes.</p>
+                
+                <h4>Step 1: Installation</h4>
+                <p>XAI is a standalone Python 3 script. Download it and make it executable.</p>
+                <pre>chmod +x xai2.py
+./xai2.py -h</pre>
+
+                <h4>Step 2: Create Data</h4>
+                <p>Create a <code>data.csv</code> file. Columns ending in <code>+</code> are maximized, <code>-</code> minimized, <code>X</code> ignored.</p>
+                <pre>NameX, Age, Salary+, Error-
+Tim,   45,  50000,   0.1
+Sue,   22,  60000,   0.05
+Bob,   35,  40000,   0.2</pre>
+                
+                <h4>Step 3: Run Analysis</h4>
+                <p>Run the analysis to find rules that separate the "best" rows from the rest.</p>
+                <pre>./xai2.py --xai data.csv</pre>
+            </div>
+        </section>
+
+        <section id="how-to" class="tab-content">
+            <div class="card">
+                <div class="card-header"><div class="icon-box">🛠️</div><h3>Common Tasks</h3></div>
+                
+                <h4>How to check for result stability</h4>
+                <p>To verify if rules are robust, run the analysis 20 times using random subsampling (budget constraints).</p>
+                <pre>./xai2.py --six data.csv</pre>
+
+                <h4>How to sort data by quality</h4>
+                <p>To see which rows are considered "best" (closest to heaven), use the <code>disty</code> command.</p>
+                <pre>./xai2.py --disty data.csv</pre>
+
+                <h4>How to debug a CSV file</h4>
+                <p>If your file fails to load, use <code>--data</code> to check column stats (mean/count).</p>
+                <pre>./xai2.py --data my_file.csv</pre>
+            </div>
+        </section>
+
+        <section id="reference" class="tab-content">
+            
+            <div class="card">
+                <div class="card-header"><div class="icon-box">💻</div><h3>CLI Reference</h3></div>
+                
+                <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem;">Configuration Flags</h4>
+                <ul class="cli-list">
+                    <li><dt>-h</dt><dd>Show help and defaults.</dd></li>
+                    <li><dt>-s INT</dt><dd>Set random seed (default: 1).</dd></li>
+                    <li><dt>-b INT</dt><dd>Set bin count (default: 7).</dd></li>
+                    <li><dt>-B INT</dt><dd>Set budget (default: 30).</dd></li>
+                </ul>
+
+                <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; margin-top:2rem;">Action Commands</h4>
+                <ul class="cli-list">
+                    <li><dt>--xai FILE</dt><dd>Run main analysis.</dd></li>
+                    <li><dt>--six FILE</dt><dd>Run stability test (N=20).</dd></li>
+                    <li><dt>--disty FILE</dt><dd>Sort rows by goal distance.</dd></li>
+                    <li><dt>--csv FILE</dt><dd>Test CSV loading.</dd></li>
+                    <li><dt>--data FILE</dt><dd>Test adding columns from file.</dd></li>
+                    <li><dt>--clone FILE</dt><dd>Test table structure replication.</dd></li>
+                    <li><dt>--all FILE</dt><dd>Run all actions.</dd></li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="icon-box">📚</div><h3>API Reference</h3></div>
+                <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem;">Data structures implemented as <code>SimpleNamespace</code> objects.</p>
+                
+                <div class="grid-2">
+                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #4f46e5;">
+                        <h4 style="margin-top:0; color:#4f46e5;">DATA</h4>
+                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
+                            <li><code>rows</code> List of data rows.</li>
+                            <li><code>cols</code> Column metadata object.</li>
+                            <li><code>n</code> Row count.</li>
+                            <li><code>_centroid</code> Cached midpoints.</li>
+                        </ul>
+                    </div>
+
+                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #f59e0b;">
+                        <h4 style="margin-top:0; color:#f59e0b;">NUM</h4>
+                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
+                            <li><code>n</code> Item count.</li>
+                            <li><code>mu</code> Mean value.</li>
+                            <li><code>m2</code> Sum of squared differences.</li>
+                        </ul>
+                    </div>
+
+                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid #10b981;">
+                        <h4 style="margin-top:0; color:#10b981;">SYM</h4>
+                        <ul style="padding-left:1rem; font-size:0.9rem; margin-bottom:0;">
+                            <li><code>n</code> Item count.</li>
+                            <li><code>has</code> Dictionary of {value: count}.</li>
+                        </ul>
+                    </div>
+
+                    <div style="background:var(--bg); padding:1rem; border-radius:8px; border-left:4px solid var(--text-muted);">
+                        <h4 style="margin-top:0; color:var(--text-muted);">the</h4>
+                        <p style="font-size:0.9rem; margin:0;">Global configuration object holding runtime settings (seed, bins, budget).</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="explanation" class="tab-content">
+            <div class="card">
+                <div class="card-header"><div class="icon-box">🧠</div><h3>Core Concepts</h3></div>
+                
+                <h4>Sigmoid Normalization</h4>
+                <p>XAI uses a Sigmoid transformation based on <code>mu</code> and <code>sd()</code> to simulate a CDF. This maps values to probabilities ($0 \dots 1$) robustly.</p>
+                <pre>norm = 1 / (1 + exp(-1.7 * z_score))</pre>
+
+                <h4>AHA Distance</h4>
+                <p>Calculates distance between heterogeneous rows.</p>
+                <table>
+                    <thead><tr><th>Type</th><th>Logic</th><th>Impl</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Sym</strong></td><td>Match/NoMatch</td><td><code>u != v</code></td></tr>
+                        <tr><td><strong>Num</strong></td><td>Normalized Delta</td><td><code>abs(n(u) - n(v))</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="icon-box">🐍</div><h3>Python Idioms</h3></div>
+                <dl class="cli-list">
+                    <li><dt>obj</dt><dd>Alias for <code>SimpleNamespace</code>.</dd></li>
+                    <li><dt>Lazy Init</dt><dd><code>i = i or Num()</code> pattern.</dd></li>
+                    <li><dt>Walrus</dt><dd><code>if (l := line.strip()):</code> pattern.</dd></li>
+                    <li><dt>Reflection</dt><dd>CLI flags are routed dynamically by inspecting function names (`go_s` -> `-s`) and docstrings, avoiding `argparse`.</dd></li>
+                </dl>
+            </div>
+        </section>
+
+        <section id="about" class="tab-content">
+            <h1>About</h1>
+            <p>This documentation was generated using the following detailed prompt specification:</p>
+            <pre style="white-space: pre-wrap; font-size: 0.85rem;">
+**Role:** Expert Technical Writer & Frontend Developer.
+**Task:** Create a single-file, responsive HTML documentation for the provided Python script "[FILENAME]".
+
+**1. Structure (The Diataxis Framework):**
+   - **Tutorials:** A narrative-driven "Getting Started" guide. Start with installation, then creating dummy data, then running a basic command.
+   - **How-To:** A collection of recipe-based solutions for specific user goals (e.g., debugging, specific flags, interpreting output).
+   - **Reference:** The technical dictionary. 
+     - *CLI:* Document all configuration flags and action commands found by inspecting the code's argument parsing logic (e.g., docstrings of `go_` functions).
+     - *API:* Document the core classes/data structures found in the code.
+   - **Explanation:** Conceptual background (algorithms, math) and architectural design decisions (e.g., specific Python patterns used).
+
+**2. Content Constraints (Strict Code Reflection):**
+   - **Source of Truth:** All content must be derived *strictly* from the provided source code.
+   - **Symbol Check:** ONLY document fields and methods actually present in the code.
+     - *Allowed:* Document what exists (e.g., `Num.mu`, `Sym.has`).
+     - *Forbidden:* Do NOT hallucinate standard library features or common methods (like `entropy`, `mode`, `min`, `max`) if they are not explicitly defined in the provided file.
+   - **Idiom Accuracy:** Accurately describe the coding patterns used (e.g., if the code uses `argparse`, document that; if it uses `sys.argv` or docstring reflection, document that specifically).
+
+**3. Visual Style:**
+   - **Theme:** Clean, modern aesthetic (e.g., Slate/Indigo or Gray/Blue palette).
+   - **Layout:** Card-based UI with a sidebar or top navigation bar.
+   - **Responsiveness:** Grid layouts must adapt to mobile screens.
+   - **Interactivity:** Tabs must switch content instantly via vanilla JavaScript (no page reloads).
+   - **Dependencies:** Zero external CSS/JS dependencies (inline everything).
+   - **Features:** Include a generic Dark/Light mode toggle.
+            </pre>
+        </section>
+
+        <footer>
+            &copy; 2025 <a href="http://timm.fyi">timm</a>. Generated by Gemini.
+        </footer>
+
+    </div>
+</main>
+
+<script>
+    function setTab(id) {
+        // 1. Update UI (Hide/Show sections)
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
+        
+        // Handle potential errors if ID doesn't exist
+        const content = document.getElementById(id);
+        const nav = document.getElementById('nav-' + id);
+        
+        if (content && nav) {
+            content.classList.add('active');
+            nav.classList.add('active');
+        }
+
+        // 2. Update Browser URL Hash (Deep Linking)
+        if (history.pushState) {
+            history.pushState(null, null, '#' + id);
+        } else {
+            location.hash = id;
+        }
+    }
+
+    function toggleTheme() {
+        const body = document.body;
+        const current = body.getAttribute('data-theme');
+        body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+    }
+    
+    // Initial Load: Check hash and load correct tab
+    const initialHash = window.location.hash.substring(1);
+    if (initialHash && document.getElementById(initialHash)) {
+        setTab(initialHash);
+    }
+
+    // Auto-detect system theme preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.setAttribute('data-theme', 'dark');
+    }
+</script>
+
+</body>
+</html>
