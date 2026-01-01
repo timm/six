@@ -124,6 +124,9 @@ def _complete(col, lst):
   return lst
 
 ### Main ---------------------------------------------------------------------
+def gauss(mid,div):
+  return mid + 2 * div * (sum(random.random() for _ in range(3)) - 1.5)
+
 def select(rule, row):
   if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
   return rule.xlo <= x < rule.xhi
@@ -214,6 +217,18 @@ def go__all(file="data.csv"):
     if k.startswith("go__") and k != "go__all":
       print("\n#",k,"------------"); fun(file)
 
+def go__num(_=None):
+  ": test Nums"
+  num = adds(gauss(10, 2) for _ in range(1000))
+  print(o(mu=num.mu, sd=sd(num)))
+  assert 9.9 <= num.mu <=10.1 and 1.9 <= sd(num) <= 2.1
+
+def go__sym(_=None):
+  ": test Syms"
+  sym = adds('Previously, we have defined an iterative data mining',Sym())
+  print(sym.has)
+  assert sym.has["a"]==5
+
 def go__csv(file="data.csv"):
   "FILE : test csv loading"
   for n,row in enumerate(csv(file)):
@@ -252,6 +267,7 @@ def go__six(file="data.csv"):
     print(b,sorted(six(Data(csv(file))) for _ in range(20)))
 
 if __name__ == "__main__":
+  go_s(1)
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"):
       fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn(None)
