@@ -1,9 +1,23 @@
 #!/usr/bin/env python3 -B
 """xai.py: explainable multi-objective optimzation
-(c) 2025 Tim Menzies, MIT license"""
+(c) 2025 Tim Menzies, MIT license
+
+Input is CSV. Header (row 1) defines column roles as follows:
+  [A-Z]* : Numeric (e.g. "Age").     [a-z]* : Symbolic (e.g. "job").
+  *+     : Maximize (e.g. "Pay+").   *-     : Minimize (e.g. "Cost-").
+  *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)
+
+To download example data:
+  mkdir -p $HOME/gits
+  git clone http://github.com/timm/moot $HOME/gits/moot
+
+To download code, install it, then test it, download this file then:
+  chmod +x xai.py
+  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv"""
 import ast,sys,random
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
+from pathlib import Path
 
 ATOM = str | int | float
 ROW  = list[ATOM]
@@ -188,6 +202,8 @@ def csv(fileName):
 def shuffle(lst): random.shuffle(lst); return lst
 
 #-----------------------------------------------------------------------------
+File=str(Path.home()) + "/gits/moot/optimize/misc/auto93.csv"
+
 def go_h(_=None):
   ": show help"
   print(__doc__,"\n\nOptions:\n")
@@ -196,7 +212,7 @@ def go_h(_=None):
       left, right = f.__doc__.split(":")
       left = k[2:].replace("_","-") + " " + left.strip()
       d = f.__defaults__
-      default = f"(default {d[0]})" if d else ""
+      default = f"(default: {d[0]})" if d else ""
       print(f"  {left:15}   {right.strip()} {default}")
 
 def go_s(s=1):
@@ -211,7 +227,7 @@ def go_B(s):
   "INT : set BUDGET for rows labelled each round"
   the.budget = coerce(s)
 
-def go__all(file="data.csv"):
+def go__all(file=File):
   "FILE : run all actions that use a FILE"
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all":
@@ -229,18 +245,25 @@ def go__sym(_=None):
   print(sym.has)
   assert sym.has["a"]==5
 
-def go__csv(file="data.csv"):
+def go__csv(file=File):
   "FILE : test csv loading"
+  total=0
   for n,row in enumerate(csv(file)):
-    if n % 40 ==0: print(n,row)
+    if n > 0: total += len(row)
+    if n > 0: assert isinstance(row[1], (float,int))
+    if n % 40==0: print(row)
+  assert 3184 == total
 
-def go__data(file="data.csv"):
+def go__data(file=File):
   "FILE : test ading columns from file"
   data =  Data(csv(file))
+  total = sum(len(row) for row in data.rows)
   print(*data.cols.names)
+  assert Num is data.cols.all[0].it
+  assert 3184 == total
   for col in data.cols.x: print(o(col))
 
-def go__clone(file="data.csv"):
+def go__clone(file=File):
   "FILE : test echoing structure of a table to a new table"
   data1 =  Data(csv(file))
   data2 = clone(data1,data1.rows)
@@ -270,4 +293,4 @@ if __name__ == "__main__":
   go_s(1)
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"):
-      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn(None)
+      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
