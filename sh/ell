@@ -18,6 +18,7 @@ alias ls="\ls --color"
 alias grep='grep --color=auto'
 alias tree='tree -C'
 alias mymux='tmux -u -f ../etc/tmux.rc'
+alias col='column -s, -t'
 
 export BASH_SILENCE_DEPRECATION_WARNING=1
 export HISTSIZE=10000

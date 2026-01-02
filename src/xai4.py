@@ -70,10 +70,11 @@ def add(i, v, inc=True):
   return v # convention: always return the thing being added
 
 def norm(num,n):
-  z = (n - num.mu) / sd(num); return 1 / (1 + exp(-1.7 * max(-3, min(3, z))))
+  z = (n - num.mu) / sd(num)
+  z = max(-3, min(3, z))
+  return 1 / (1 + exp(-1.7 * z))
 
-def sd(num):
-  return 1/BIG + (0 if num.n < 2 else sqrt(max(0,num.m2)/(num.n - 1 )))
+def sd(num): return 1/BIG + (0 if num.n<2 else sqrt(max(0,num.m2)/(num.n - 1)))
 
 def mid(col): return col.mu if Num is col.it else max(col.has, key=col.has.get)
 
@@ -147,46 +148,27 @@ def select(rule, row):
   return rule.xlo <= x < rule.xhi
 
 def xai(data):
-  print(o(the))
-  print(*data.cols.names)
-  print(o(mid=mids(data)))
-  def show(n): return "-∞" if n==-BIG else "∞" if n==BIG else o(n)
+  print(*data.cols.names,sep=",")
+  def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    print(f"{o(rows[len(rows)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    print(f"{o(mids(clone(data,rows)))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
     if rule := cut(data, rows):
       now = [row for row in rows if select(rule, row)]
       if 4 < len(now) < len(rows):
-        go(now, lvl + 1, f"{rule.txt} {show(rule.xlo)} .. {show(rule.xhi)} ")
+        go(now, lvl + 1, f"{rule.txt} in [{show(rule.xlo)} .. {show(rule.xhi)}) ")
   go(data.rows, 0)
 
-
-def six(data):
-  seen = clone(data)
-  unique=set()
-  def go(rows, lvl=0, prefix=""):
-    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    some = shuffle(rows)[:the.budget]
-    for row in some:
-      add(seen,row)
-      unique.add(tuple(row))
-    if rule := cut(seen, some):
-      now = [row for row in rows if select(rule, row)]
-      if 4 < len(now) < len(rows):
-        return go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
-    return int(100*ys.mu)
-  return go(data.rows, 0)
-
 ## Lib -----------------------------------------------------------------------
-def o(v=None, dec=2,**d):
+def o(v=None, DEC=2,**D):
+  if D: return o(D,DEC=DEC)
   isa = isinstance
-  if d: v=d
-  if isa(v, (int, float)): return f"{round(v, dec):,}"
-  if isa(v, list):  return f"[{', '.join(o(k,dec) for k in v)}]"
-  if isa(v, tuple): return f"({', '.join(o(k,dec) for k in v)})"
+  if isa(v, (int, float)): return f"{round(v, DEC):_}"
+  if isa(v, list):  return f"[{', '.join(o(k,DEC) for k in v)}]"
+  if isa(v, tuple): return f"({', '.join(o(k,DEC) for k in v)})"
   if callable(v):   return v.__name__
   if hasattr(v, "__dict__"): v = vars(v)
-  if isa(v, dict): return "{"+ " ".join(f":{k} {o(v[k],dec)}" for k in v) +"}"
+  if isa(v, dict): return "{"+ " ".join(f":{k} {o(v[k],DEC)}" for k in v) +"}"
   return str(v)
 
 def coerce(s):
@@ -219,17 +201,17 @@ def go_h(_=None):
       default = f"(default: {d[0]})" if d else ""
       print(f"  {left:15}   {right.strip()} {default}")
 
-def go_s(s=1):
+def go_s(n=1):
   "INT : set random SEED "
-  the.seed = coerce(s); random.seed(the.seed)
+  the.seed = n; random.seed(the.seed)
 
-def go_b(s=5):
+def go_b(n=7):
   "INT : set number of BINS used on discretization"
-  the.bins = coerce(s)
+  the.bins = n
 
-def go_B(s):
+def go_B(n=50):
   "INT : set BUDGET for rows labelled each round"
-  the.budget = coerce(s)
+  the.budget = n
 
 def go__all(file=File):
   "FILE : run all actions that use a FILE"
@@ -304,7 +286,6 @@ def go__bins(file=File):
 
 def go__xai(file=File):
   "FILE : can we succinctly list main effects in a table?"
-  print("\n"+file)
   xai(Data(csv(file)))
 
 def go__lurch(file=File):
@@ -312,11 +293,12 @@ def go__lurch(file=File):
   data = Data(csv(file))
   n=len(data.rows)//2
   train,test = shuffle(data.rows[:n])[:the.budget], data.rows[n:]
-  print(1,n)
   labelled = clone(data,train)
-  m=int(sqrt(the.budget))
-  bmid,rmid = mid(clone(data,train[:m])), mid(clone(data,train[m:]))
   xai(labelled)
+  return print(2)
+  m=int(sqrt(the.budget))
+  print(train[:m])
+  bmid,rmid = mids(clone(data,train[:m])), mids(clone(data,train[m:]))
   sorter=lambda r: distx(labelled, bmid,r) - distx(labelled, rmid,r)
   row = min(test.sort(key=sorter)[:5],
             key=lambda r:ydist(data.r))
@@ -336,4 +318,4 @@ if __name__ == "__main__":
   go_s(1)
   for n, s in enumerate(sys.argv):
     if fn := vars().get(f"go{s.replace('-', '_')}"):
-      fn(sys.argv[n+1]) if n < len(sys.argv) - 1 else fn()
+      fn(coerce(sys.argv[n+1])) if n < len(sys.argv) - 1 else fn()
