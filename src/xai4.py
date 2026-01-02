@@ -5,7 +5,7 @@ xai.py: explainable multi-objective optimzation
 
 Input is CSV. Header (row 1) defines column roles as follows:
   [A-Z]* : Numeric (e.g. "Age").     [a-z]* : Symbolic (e.g. "job").
-  *+     : Maximize (e.g. "Pay+").   *-     : Minimize (e.g. "Cost-").
+  *+     : Mximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").
   *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)
 
 To download example data:
@@ -14,7 +14,10 @@ To download example data:
 
 To download code, install it, then test it, download this file then:
   chmod +x xai.py
-  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv"""
+  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv
+
+For help on command line options:
+  ./xai.py -h """
 import ast,sys,random,re
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
@@ -28,7 +31,7 @@ COL  = NUM | SYM
 THING = COL | DATA
 
 BIG=1e32
-the=obj(bins=7, budget=30, seed=1)
+the=obj(bins=7, budget=30, seed=1, warm=4, data="data.csv")
 
 ### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -52,21 +55,25 @@ def clone(data, rows=None): return adds(rows, Data([data.cols.names]))
 
 ### Functions ----------------------------------------------------------------
 def adds(src, i=None): # (src:Iterable, ?i) -> i
-  i = i or Num(); [add(i,v) for v in src]; return i
+  i = i or Num(); [add(i,v) for v in src or []]; return i
 
-def sub(i, v): return add(i, v, inc=False)
+def sub(i, v): return add(i, v, inc=-1)
 
-def add(i, v, inc=True):
+def add(i, v, inc=1):
   if v!="?":
     if Data is i.it and not i.cols: i.cols = Cols(v) # initializing, not adding
     else:
-      i.n += 1 # adding
+      i.n += inc # adding
       if   Sym is i.it: i.has[v] = inc + i.has.get(v,0)
-      elif Num is i.it: d = v-i.mu; i.mu += inc*d/i.n; i.m2 += inc*d*(v-i.mu)
+      elif Num is i.it: 
+        if inc < 0 and i.n < 2:
+          i.mu = i.m2= i.n=0
+        else:
+          d = v-i.mu; i.mu += inc*d/i.n; i.m2 += inc*d*(v-i.mu)
       else:
         i._centroid = None # old centroid now out of date
-        [add(col,v[col.at],inc) for col in i.cols.all] # recursive add to cols
-        (i.rows.append if inc else i.rows.remove)(v)   # handle row storage
+        [add(col, v[col.at], inc) for col in i.cols.all] # recursive add to cols
+        (i.rows.append if inc>0 else i.rows.remove)(v)   # handle row storage
   return v # convention: always return the thing being added
 
 def norm(num,n):
@@ -119,6 +126,19 @@ def peeking(data,rows):            # best if rows arrived shuffled
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
 
+def selects(rules,rows):
+  print(" ")
+  for row in rows:
+    good=True
+    for rule in rules:
+      print(rule.txt, rule.xlo, rule.xhi)
+      if not select(rule,row): good=False
+    if good: yield row
+
+def select(rule, row):
+  if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
+  return rule.xlo <= x < rule.xhi
+
 def cut(data, rows):
   all_bins = (b for col in data.cols.x for b in cuts(col, rows, data))
   return min(all_bins, key=lambda b: score(b.y), default=None)
@@ -139,17 +159,11 @@ def _complete(col, lst):
       b.xhi = lst[n+1].xlo if n < len(lst)-1 else BIG
   return lst
 
-### Main ---------------------------------------------------------------------
+## Lib -----------------------------------------------------------------------
 def gauss(mid,div):
   return mid + 2 * div * (sum(random.random() for _ in range(3)) - 1.5)
 
-def select(rule, row):
-  if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
-  return rule.xlo <= x < rule.xhi
-
-
-## Lib -----------------------------------------------------------------------
-def o(v=None, DEC=2,**D):
+def o(v=None, DEC=3,**D):
   if D: return o(D,DEC=DEC)
   isa = isinstance
   if isa(v, (int, float)): return f"{round(v, DEC):_}"
@@ -190,15 +204,15 @@ def go_h(_=None):
       default = f"(default: {d[0]})" if d else ""
       print(f"  {left:15}   {right.strip()} {default}")
 
-def go_s(n=1):
+def go_s(n=the.seed):
   "INT : set random SEED "
   the.seed = n; random.seed(the.seed)
 
-def go_b(n=7):
+def go_b(n=the.bins):
   "INT : set number of BINS used on discretization"
   the.bins = n
 
-def go_B(n=50):
+def go_B(n=the.budget):
   "INT : set BUDGET for rows labelled each round"
   the.budget = n
 
@@ -244,6 +258,21 @@ def go__clone(file=File):
   data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
+def go__inc(file=File):
+  data1 = Data(csv(file))
+  data2 = clone(data1)
+  for row in data1.rows:
+    add(data2,row)
+    if len(data2.rows)==50: one= mids(data2)
+  two = mids(data2)
+  for row in data1.rows[::-1]:
+    sub(data2,row)
+    if len(data2.rows)==50: three=mids(data2)
+  assert two != one
+  for a,c in zip(one,three):
+    a,c = round(a,4),round(c,4)
+    assert a==c 
+
 def go__distx(file=File):
   "FILE : can we sort rows by their distance to one row?"
   data=Data(csv(file))
@@ -276,38 +305,54 @@ def go__bins(file=File):
 def go__xai(file=File):
   "FILE : can we succinctly list main effects in a table?"
   print("\n"+re.sub(r"^.*/","",file))
-  data = Data(csv(file))
-  print("x : ",len(data.cols.x))
-  print("y : ",len(data.cols.y))
-  print("r : ",len(data.rows))
+  xai(Data(csv(file)))
+
+def xai(data,rows=None,loud=True):
+  if loud:
+    print("x : ",len(data.cols.x))
+    print("y : ",len(data.cols.y))
+    print("r : ",len(data.rows))
+    print("b : ",the.bins)
   def goals(data,row): return [row[goal.at] for goal in data.cols.y]
-  print(*goals(data,data.cols.names),sep=",")
+  if loud: print(*goals(data,data.cols.names),sep=",")
   def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    if loud: print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
     if rule := cut(data, rows):
+      rules.append(rule)
       now = [row for row in rows if select(rule, row)]
-      if 4 < len(now) < len(rows):
+      if 2 < len(now) < len(rows):
         txt = rule.xlo if rule.xlo==rule.xhi else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
-        go(now, lvl + 1, f"{rule.txt} is {txt}")
-  go(data.rows, 0)
+        return go(now, lvl + 1, f"{rule.txt} is {txt}")
+    return rules
+  rules=[]
+  return go(rows or data.rows, 0)
 
 def go__lurch(file=File):
   "FILE : can we succinctly list main effects in a table using random selection?"
+  print("\n"+re.sub(r"^.*/","",file))
   data = Data(csv(file))
-  n=len(data.rows)//2
-  train,test = shuffle(data.rows[:n])[:the.budget], data.rows[n:]
-  labelled = clone(data,train)
-  xai(labelled)
-  return print(2)
-  m=int(sqrt(the.budget))
-  print(train[:m])
-  bmid,rmid = mids(clone(data,train[:m])), mids(clone(data,train[m:]))
-  sorter=lambda r: distx(labelled, bmid,r) - distx(labelled, rmid,r)
-  row = min(test.sort(key=sorter)[:5],
-            key=lambda r:ydist(data.r))
-  print(row,ydist(data,row))
+  ninety,few=Num(),Num()
+  Y= lambda row: disty(data,row)
+  def learn(train,test):
+     rules= xai(clone(data,train))
+     print(len(list(selects(rules,test))))
+     yes=list(selects(rules,test))
+     print(len(yes))
+     #return Y(min([row for row in selects(rules,test)][:5], key=Y))
+  for _ in range(20):
+    rows   = shuffle(data.rows)
+    train1 = rows[:int(0.9*len(rows))]
+    train2 = rows[:the.budget]
+    test   = rows[len(rows)//2:]
+    return learn(train2,test)
+    add(ninety, learn(train1,test))
+    add(few,    learn(train2,test))
+  all = adds(Y(row) for row in data.rows)
+  print("b4",o(mu=all.mu,sd=sd(all)),sep="\t")
+  print("90%",o(mu=ninety.mu,sd=sd(ninety)),sep="\t")
+  print(the.budget+5,o(mu=few.mu,sd=sd(few)),sep="\t")
 
 def go_peeking(file=File):
   data = Data(csv(file))

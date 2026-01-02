@@ -6,10 +6,14 @@ egXomoG: ## big file
 egs: ## run all tests
 	./binr.lua --all
 
-~/tmp/xai.log:  ## run on many files
-	$(MAKE) todo=xai files="$(HOME)/gits/moot/optimize/*/*.csv" run | tee $@ 
+~/tmp/xai4.log:  ## run on many files
+	$(MAKE) todo=xai files="$(HOME)/gits/moot/optimize/*/*.csv" run16 | tee $@ 
 
-run:
+~/tmp/lurch.log:  ## run on many files
+	$(MAKE) todo=lurch files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
+
+run16:
 	@mkdir -p ~/tmp
 	time ls -r $(files) | xargs -P 16 -n 1 -I{} sh -c 'python3 -B xai4.py --$(todo)  "{}"'
+
 
