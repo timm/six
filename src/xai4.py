@@ -1,5 +1,6 @@
 #!/usr/bin/env python3 -B
-"""xai.py: explainable multi-objective optimzation
+"""
+xai.py: explainable multi-objective optimzation
 (c) 2025 Tim Menzies, MIT license
 
 Input is CSV. Header (row 1) defines column roles as follows:
@@ -112,7 +113,7 @@ def peeking(data,rows):            # best if rows arrived shuffled
         a.rows.sorted(key=y)
         add(z, sub(a, a.rows[-1])) # demote worse row in best to rest
   d.rows.sort(key=x)
-  return obj(model=x, labelled=d)
+  return obj(sorter=x, labelled=d)
 
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
@@ -148,14 +149,17 @@ def select(rule, row):
 def xai(data):
   print(o(the))
   print(*data.cols.names)
+  print(o(mid=mids(data)))
+  def show(n): return "-∞" if n==-BIG else "∞" if n==BIG else o(n)
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
     print(f"{o(rows[len(rows)//2])}: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
     if rule := cut(data, rows):
       now = [row for row in rows if select(rule, row)]
       if 4 < len(now) < len(rows):
-        go(now, lvl + 1, f"{"|.. " * lvl}{rule.txt} {o(rule.xlo)}..{o(rule.xhi)} ")
+        go(now, lvl + 1, f"{rule.txt} {show(rule.xlo)} .. {show(rule.xhi)} ")
   go(data.rows, 0)
+
 
 def six(data):
   seen = clone(data)
@@ -173,7 +177,7 @@ def six(data):
     return int(100*ys.mu)
   return go(data.rows, 0)
 
-## Lib -----------------------------------------------------------------------
+## Lib -----------------------------------------------------------------------
 def o(v=None, dec=2,**d):
   isa = isinstance
   if d: v=d
@@ -201,7 +205,7 @@ def csv(fileName):
 
 def shuffle(lst): random.shuffle(lst); return lst
 
-#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 File=str(Path.home()) + "/gits/moot/optimize/misc/auto93.csv"
 
 def go_h(_=None):
@@ -269,25 +273,64 @@ def go__clone(file=File):
   data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
-def go__disty(file="data.csv"):
+def go__distx(file=File):
+  "FILE : can we sort rows by their distance to one row?"
+  data=Data(csv(file))
+  print(*data.cols.names,"distx",sep=",")
+  r1 = data.rows[0]
+  data.rows.sort(key=lambda r2: distx(data,r1,r2))
+  for n,r2 in enumerate(data.rows[1:]):
+    assert 0 <= distx(data, r1,r2) <= 1
+    if n%40==0: print(*r2,o(distx(data,r1,r2)),sep=",")
+
+def go__disty(file=File):
   "FILE : can we sort rows by their distance to heaven?"
   data=Data(csv(file))
-  print(*data.cols.names)
-  for row in sorted(data.rows, key=lambda r: disty(data,r))[::40]:
-    print(*row)
+  print(*data.cols.names,"disty",sep=",")
+  data.rows.sort(key=lambda r: disty(data,r))
+  for n,r1 in enumerate(data.rows):
+    if n>0:
+      r2=data.rows[n-1]
+      assert disty(data, r1) >= disty(data,r2)
+    if n%40==0: print(*r1,o(disty(data, r1)),sep=",")
 
-def go__xai(file="data.csv"):
+def go__bins(file=File):
+  "FILE : show the rankings of a range"
+  data = Data(csv(file))
+  all_bins = (b for col in data.cols.x for b in cuts(col, data.rows, data))
+  for b in sorted(all_bins, key=lambda b: score(b.y)):
+    print(b.txt,b.xlo,b.xhi, o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
+                               scored= score(b.y)),sep="\t")
+
+def go__xai(file=File):
   "FILE : can we succinctly list main effects in a table?"
   print("\n"+file)
   xai(Data(csv(file)))
 
-def go__six(file="data.csv"):
-  "FILE : redo xai, but in each loop, just read BUDGET rows"
-  xai(Data(csv(file))); print(" ")
-  go_s(the.seed)
-  for b in [5,10,20,30]:
-    go_B(the.budget)
-    print(b,sorted(six(Data(csv(file))) for _ in range(20)))
+def go__lurch(file=File):
+  "FILE : can we succinctly list main effects in a table using random selection?"
+  data = Data(csv(file))
+  n=len(data.rows)//2
+  train,test = shuffle(data.rows[:n])[:the.budget], data.rows[n:]
+  print(1,n)
+  labelled = clone(data,train)
+  m=int(sqrt(the.budget))
+  bmid,rmid = mid(clone(data,train[:m])), mid(clone(data,train[m:]))
+  xai(labelled)
+  sorter=lambda r: distx(labelled, bmid,r) - distx(labelled, rmid,r)
+  row = min(test.sort(key=sorter)[:5],
+            key=lambda r:ydist(data.r))
+  print(row,ydist(data,row))
+
+def go_peeking(file=File):
+  data = Data(csv(file))
+  n=len(data.rows)//2
+  train,test = shuffle(data.rows[:n]). data.rows[n:]
+  model=peeking(data, train)
+  xai(model.labelled)
+  row = min(test.sort(key=model.sorter)[:5],
+            key=lambda r:ydist(data.r))
+  print(row,ydist(data,row))
 
 if __name__ == "__main__":
   go_s(1)
