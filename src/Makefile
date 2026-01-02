@@ -6,35 +6,10 @@ egXomoG: ## big file
 egs: ## run all tests
 	./binr.lua --all
 
-TASKS := $(wildcard ~/gits/moot/optimize/[bhmp]*/*.csv)
-JOBS := $(addprefix run-, $(TASKS))
+~/tmp/xai.log:  ## run on many files
+	$(MAKE) todo=xai files="$(HOME)/gits/moot/optimize/*/*.csv" run | tee $@ 
 
-egxai: $(JOBS)
-
-.PHONY: egxai $(JOBS)
-
-$(JOBS): run-%: %
-	@mkdir -p ~/tmp/xai
-	@echo "--- [STARTED] Processing $<"
-	@# use $(notdir $<) to get just 'data.csv' without the folder path
-	@./xai4 -xai $< > ~/tmp/xai/$(notdir $<).log 2>&1
-	@echo "--- [DONE]    Finished   $<"
-
-#magxaie -j16 --output-sync=target:
-#gmake  -j16 --output-sync=target   egxai
-
-TASKS := $(wildcard ~/gits/moot/optimize/[bhmp]*/*.csv)
-JOBS := $(addprefix run1-, $(TASKS))
-
-egxai: setup-dir $(JOBS)
-
-setup-dir:
-	@mkdir -p ~/tmp/xai
-
-.PHONY: egxai $(JOBS)
-
-run1-%: %
-	@echo "--- [STARTED] Processing $<"
-	@./xai4 -xai $< > ~/tmp/xai/$(notdir $<).log 2>&1
-	@echo "--- [DONE]    Finished   $<"
+run:
+	@mkdir -p ~/tmp
+	time ls -r $(files) | xargs -P 16 -n 1 -I{} sh -c 'python3 -B xai4.py --$(todo)  "{}"'
 

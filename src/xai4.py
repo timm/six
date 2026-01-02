@@ -15,7 +15,7 @@ To download example data:
 To download code, install it, then test it, download this file then:
   chmod +x xai.py
   ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv"""
-import ast,sys,random
+import ast,sys,random,re
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 from pathlib import Path
@@ -147,17 +147,6 @@ def select(rule, row):
   if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
   return rule.xlo <= x < rule.xhi
 
-def xai(data):
-  print(*data.cols.names,sep=",")
-  def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
-  def go(rows, lvl=0, prefix=""):
-    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    print(f"{o(mids(clone(data,rows)))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    if rule := cut(data, rows):
-      now = [row for row in rows if select(rule, row)]
-      if 4 < len(now) < len(rows):
-        go(now, lvl + 1, f"{rule.txt} in [{show(rule.xlo)} .. {show(rule.xhi)}) ")
-  go(data.rows, 0)
 
 ## Lib -----------------------------------------------------------------------
 def o(v=None, DEC=2,**D):
@@ -286,7 +275,23 @@ def go__bins(file=File):
 
 def go__xai(file=File):
   "FILE : can we succinctly list main effects in a table?"
-  xai(Data(csv(file)))
+  print("\n"+re.sub(r"^.*/","",file))
+  data = Data(csv(file))
+  print("x : ",len(data.cols.x))
+  print("y : ",len(data.cols.y))
+  print("r : ",len(data.rows))
+  def goals(data,row): return [row[goal.at] for goal in data.cols.y]
+  print(*goals(data,data.cols.names),sep=",")
+  def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
+  def go(rows, lvl=0, prefix=""):
+    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
+    print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    if rule := cut(data, rows):
+      now = [row for row in rows if select(rule, row)]
+      if 4 < len(now) < len(rows):
+        txt = rule.xlo if rule.xlo==rule.xhi else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
+        go(now, lvl + 1, f"{rule.txt} is {txt}")
+  go(data.rows, 0)
 
 def go__lurch(file=File):
   "FILE : can we succinctly list main effects in a table using random selection?"
