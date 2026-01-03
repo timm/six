@@ -8,16 +8,16 @@ Input is CSV. Header (row 1) defines column roles as follows:
   *+     : Mximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").
   *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)
 
+For help on command line options:
+  ./xai.py -h
+
 To download example data:
   mkdir -p $HOME/gits
   git clone http://github.com/timm/moot $HOME/gits/moot
 
 To download code, install it, then test it, download this file then:
   chmod +x xai.py
-  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv
-
-For help on command line options:
-  ./xai.py -h """
+  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv"""
 import ast,sys,random,re
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
@@ -30,7 +30,7 @@ from pathlib import Path
 # COL  = NUM | SYM
 # THING = COL | DATA
 BIG=1e32
-the=obj(bins=7, budget=50, seed=1, data="data.csv")
+the=obj(bins=7, budget=30, seed=1, leaf=2, data="data.csv")
 
 ### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -52,7 +52,7 @@ def Data(rows=None):
 
 def clone(data, rows=None): return adds(rows, Data([data.cols.names]))
 
-### Functions ----------------------------------------------------------------
+### Update ----------------------------------------------------------------
 def adds(src, i=None): # (src:Iterable, ?i) -> i
   i = i or Num(); [add(i,v) for v in src or []]; return i
 
@@ -73,6 +73,7 @@ def add(i, v, inc=1):
         (i.rows.append if inc>0 else i.rows.remove)(v)   # row storage
   return v # convention: always return the thing being added
 
+### Queries ----------------------------------------------------------------
 def norm(num,n):
   z = (n - num.mu) / sd(num)
   z = max(-3, min(3, z))
@@ -102,33 +103,78 @@ def _aha(col,u,v):
   v = v if v != "?" else (0 if u>0.5 else 1)
   return abs(u - v)
 
-## Cutting -------------------------------------------------------------------
-def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
+## Cutting -------------------------------------------------------------------
+def Cut(at,txt,lo,hi): 
+  return obj(it=Cut, at=at, txt=txt, xlo=lo, xhi=hi, y=Num())
 
-def select(rule, row):
-  if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
-  return rule.xlo <= x < rule.xhi
+def cutShow(cut, accept=True):
+  s,lo,hi = cut.txt, cut.xlo, cut.xhi
+  if lo == hi: 
+    return f"{s} {'==' if accept else '!='} {lo}"
+  if hi == BIG:
+    return f"{s} {'>=' if accept else '<'} {lo}"
+  if lo == -BIG:
+    return f"{s} {'<' if accept else '>='} {hi}"
+  return f"{lo} <= {s} < {hi}" if accept else f"{s} < {lo} or {s} >= {hi}"
 
-def cut(data, rows):
-  all_bins = (b for col in data.cols.x for b in cuts(col, rows, data))
-  return min(all_bins, key=lambda b: score(b.y), default=None)
+def cutSelects(cut, row):
+  if (x:=row[cut.at]) == "?" : return True
+  if cut.xlo == cut.xhi      : return x == cut.xhi
+  return cut.xlo <= x < cut.xhi
 
-def cuts(col, rows, data):
+def cutScore(cut): 
+  if cut.y.n<the.leaf: return BIG
+  return cut.y.mu + sd(cut.y) / (sqrt(cut.y.n) + 1/BIG)
+
+def cutRows(data, rows):
+  all_bins = (b for col in data.cols.x for b in cutsRows(col, rows, data))
+  return min(all_bins, key=lambda b: cutScore(b), default=None)
+
+def cutsRows(col, rows, data):
   d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
   for x, y in sorted(xys):
     k = x if Sym is col.it else floor(the.bins * norm(col, x))
-    if k not in d: d[k] = obj(at=col.at, txt=col.txt, xlo=x, xhi=x, y=Num())
+    if k not in d: 
+      d[k] = Cut(col.at,col.txt, x, x)
     add(d[k].y, y)
     d[k].xhi = x
-  return _complete(col, sorted(d.values(), key=lambda b: b.xlo))
+  return cutsComplete(col, sorted(d.values(), key=lambda b: b.xlo))
 
-def _complete(col, lst):
+def cutsComplete(col, cuts):
   if Num is col.it:
-    for n, b in enumerate(lst):
-      b.xlo = lst[n-1].xhi if n > 0 else -BIG
-      b.xhi = lst[n+1].xlo if n < len(lst)-1 else BIG
-  return lst
+    for n, b in enumerate(cuts):
+      b.xlo = cuts[n-1].xhi if n > 0 else -BIG
+      b.xhi = cuts[n+1].xlo if n < len(cuts)-1 else BIG
+  return cuts
 
+## Trees -------------------------------------------------------------------
+# Trees recursively cut data.
+def Tree(n,mu, cut):
+  return obj(it=Tree, n=n, mu=mu, cut=cut, kids={})
+
+def treeGrow(data, rows=None, cut=None):
+  rows = rows or data.rows
+  tree = Tree(len(rows), disty(data,mids(clone(data,rows))), cut)
+  if len(rows) > the.leaf*2:
+    if cut1 := cutRows(data,rows):
+      y,n = [],[]
+      for row in rows: (y if cutSelects(cut1,row) else n).append(row)
+      if y and n: 
+        tree.kids[True]  = treeGrow(data, y, cut1)
+        tree.kids[False] = treeGrow(data, n, cut1)
+  return tree
+
+def treeShow(tree, lvl=0,accept=True):
+  here=f"{cutShow(tree.cut,accept)} " if lvl>0 else ""
+  print(f"{o(tree.mu):6}{tree.n:>4}   {'| ' * (lvl-1) }{here}")
+  for k, kid in tree.kids.items():
+    treeShow(kid, lvl + 1,k)
+
+def treeLeaf(tree,row):
+  if tree.kids:
+    return treeLeaf( tree.kids[cutSelects(tree.cut,row)], row)
+  return tree
+   
 ## Lib -----------------------------------------------------------------------
 def gauss(mid,div):
   return mid + 2 * div * (sum(random.random() for _ in range(3)) - 1.5)
@@ -172,10 +218,6 @@ def go_h(_=None):
       default = f"(default: {d[0]})" if d else ""
       print(f"  {left:15}   {right.strip()} {default}")
 
-def go_s(n=the.seed):
-  "INT : set random SEED "
-  the.seed = n; random.seed(the.seed)
-
 def go_b(n=the.bins):
   "INT : set number of BINS used on discretization"
   the.bins = n
@@ -184,10 +226,19 @@ def go_B(n=the.budget):
   "INT : set BUDGET for rows labelled each round"
   the.budget = n
 
+def go_l(n=the.leaf):
+  "INT : set minumum exampels per leaf"
+  the.leaf = n
+
+def go_s(n=the.seed):
+  "INT : set random number seed"
+  the.seed = n; random.seed(n)
+
 def go__all(file=the.data):
   "FILE : run all actions that use a FILE"
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all":
+      go_s(1)
       print("\n#",k,"------------"); fun(file)
 
 def go__num(_=None):
@@ -250,71 +301,76 @@ def go__disty(file=the.data):
 def go__bins(file=the.data):
   "FILE : show the rankings of a range"
   data = Data(csv(file))
-  all_bins = (b for col in data.cols.x for b in cuts(col, data.rows, data))
-  for b in sorted(all_bins, key=lambda b: score(b.y)):
-    print(b.txt,b.xlo,b.xhi, o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
-                               scored= score(b.y)),sep="\t")
+  all_bins = (b for col in data.cols.x for b in cutsRows(col, data.rows, data))
+  for b in sorted(all_bins, key=lambda b: cutScore(b)):
+    print(f"{cutShow(b):20}", o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
+                               scored= cutScore(b)),sep="\t")
 
-def go__xai(file=the.data):
-  "FILE : can we succinctly list main effects in a table?"
-  print("\n"+re.sub(r"^.*/","",file))
-  xai(Data(csv(file)))
-
-def xai(data,rows=None,loud=True):
-  if loud:
-    print("x : ",len(data.cols.x))
-    print("y : ",len(data.cols.y))
-    print("r : ",len(data.rows))
-    print("b : ",the.bins)
-  def goals(data,row): return [row[goal.at] for goal in data.cols.y]
-  if loud: print(*goals(data,data.cols.names),sep=",")
-  def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
-  def go(rows, lvl=0, prefix=""):
-    ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    if loud: 
-      print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-    if rule := cut(data, rows):
-      rules.append(rule)
-      now = [row for row in rows if select(rule, row)]
-      if 2 < len(now) < len(rows):
-        txt = rule.xlo if rule.xlo==rule.xhi \
-                       else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
-        return go(now, lvl + 1, f"{rule.txt} is {txt}")
-    return rules,rows
-  rules=[]
-  return go(rows or data.rows, 0)
-
-def go__lurch(file=the.data):
-  "FILE : can we succinctly list main effects in a table using random selection?"
-  print("\n"+re.sub(r"^.*/","",file))
+def go__tree(file=the.data):
   data = Data(csv(file))
-  ninety,few,br=Num(),Num(),Num()
-  Y= lambda row: disty(data,row)
-  def learn(train,test):
-     labelled=clone(data,train)
-     _,best= xai(labelled,loud=False)
-     bmid = mids(clone(data,best))
-     return sorted(test, key=lambda row: distx(labelled,row,bmid))
-  def poles(train,test):
-    train.sort(key=lambda row: disty(data,row))
-    n=int(sqrt(len(train)))
-    bmid,rmid = mids(clone(data, train[:n])), mids(clone(data,train[n:]))
-    seen=clone(data,train)
-    return sorted(test, key=lambda r: distx(seen, r,bmid)- distx(seen,r,rmid))
-  def check(rows): return Y(min(rows[:5], key=Y))
-  for _ in range(20):
-    rows   = shuffle(data.rows)
-    train1 = rows[:int(0.9*len(rows))]
-    train2 = rows[:the.budget]
-    test   = rows[len(rows)//2:]
-    add(ninety, check(learn(train1,test)))
-    add(few,    check(learn(train2,test)))
-    add(br,     check(poles(train2,test)))
-  all = adds(Y(row) for row in data.rows)
-  print("b4",o(mu=all.mu,sd=sd(all)),sep="\t")
-  print("90%",o(mu=ninety.mu,sd=sd(ninety)),sep="\t")
-  print(f"rules{the.budget+5}",o(mu=few.mu,sd=sd(few)),sep="\t")
-  print("br" ,o(mu=br.mu,sd=sd(br)),sep="\t")
+  treeShow(treeGrow(clone(data, shuffle(data.rows)[:the.budget])))
+
+
+# def go__xai(file=the.data):
+#   "FILE : can we succinctly list main effects in a table?"
+#   print("\n"+re.sub(r"^.*/","",file))
+#   xai(Data(csv(file)))
+
+# def xai(data,rows=None,loud=True):
+#   if loud:
+#     print("x : ",len(data.cols.x))
+#     print("y : ",len(data.cols.y))
+#     print("r : ",len(data.rows))
+#     print("b : ",the.bins)
+#   def goals(data,row): return [row[goal.at] for goal in data.cols.y]
+#   if loud: print(*goals(data,data.cols.names),sep=",")
+#   def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
+#   def go(rows, lvl=0, prefix=""):
+#     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
+#     if loud: 
+#       print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+#     if rule := cutRows(data, rows):
+#       rules.append(rule)
+#       now = [row for row in rows if select(rule, row)]
+#       if 2 < len(now) < len(rows):
+#         txt = rule.xlo if rule.xlo==rule.xhi \
+#                        else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
+#         return go(now, lvl + 1, f"{rule.txt} is {txt}")
+#     return rules,rows
+#   rules=[]
+#   return go(rows or data.rows, 0)
+
+# def go__lurch(file=the.data):
+#   "FILE : can we succinctly list main effects in a table using random selection?"
+#   print("\n"+re.sub(r"^.*/","",file))
+#   data = Data(csv(file))
+#   ninety,few,br=Num(),Num(),Num()
+#   Y= lambda row: disty(data,row)
+#   def learn(train,test):
+#      labelled=clone(data,train)
+#      _,best= xai(labelled,loud=False)
+#      bmid = mids(clone(data,best))
+#      return sorted(test, key=lambda row: distx(labelled,row,bmid))
+#   def poles(train,test):
+#     train.sort(key=lambda row: disty(data,row))
+#     n=int(sqrt(len(train)))
+#     bmid,rmid = mids(clone(data, train[:n])), mids(clone(data,train[n:]))
+#     seen=clone(data,train)
+#     return sorted(test, key=lambda r: distx(seen, r,bmid)- distx(seen,r,rmid))
+#   def check(rows): return Y(min(rows[:5], key=Y))
+  # for _ in range(20):
+  #   rows   = shuffle(data.rows)
+  #   train1 = rows[:int(0.9*len(rows))]
+  #   train2 = rows[:the.budget]
+  #   test   = rows[len(rows)//2:]
+  #   add(ninety, check(learn(train1,test)))
+  #   add(few,    check(learn(train2,test)))
+  #   add(br,     check(poles(train2,test)))
+  # all = adds(Y(row) for row in data.rows)
+  # print("b4",o(mu=all.mu,sd=sd(all)),sep="\t")
+  # print("90%",o(mu=ninety.mu,sd=sd(ninety)),sep="\t")
+  # print(f"rules{the.budget+5}",o(mu=few.mu,sd=sd(few)),sep="\t")
+  # print("br" ,o(mu=br.mu,sd=sd(br)),sep="\t")
 
 if __name__ == "__main__":
   go_s(1)
