@@ -325,7 +325,7 @@ def xai(data,rows=None,loud=True):
       if 2 < len(now) < len(rows):
         txt = rule.xlo if rule.xlo==rule.xhi else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
         return go(now, lvl + 1, f"{rule.txt} is {txt}")
-    return rules
+    return rules,rows
   rules=[]
   return go(rows or data.rows, 0)
 
@@ -336,17 +336,16 @@ def go__lurch(file=File):
   ninety,few=Num(),Num()
   Y= lambda row: disty(data,row)
   def learn(train,test):
-     rules= xai(clone(data,train))
-     print(len(list(selects(rules,test))))
-     yes=list(selects(rules,test))
-     print(len(yes))
-     #return Y(min([row for row in selects(rules,test)][:5], key=Y))
+     labelled=clone(data,train)
+     _,best= xai(labelled,loud=False)
+     bmid = mids(clone(data,best))
+     test.sort(key=lambda row: distx(labelled,row,bmid))
+     return Y(min(test[:5], key=Y))
   for _ in range(20):
     rows   = shuffle(data.rows)
     train1 = rows[:int(0.9*len(rows))]
     train2 = rows[:the.budget]
     test   = rows[len(rows)//2:]
-    return learn(train2,test)
     add(ninety, learn(train1,test))
     add(few,    learn(train2,test))
   all = adds(Y(row) for row in data.rows)
