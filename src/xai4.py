@@ -23,15 +23,14 @@ from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 from pathlib import Path
 
-ATOM = str | int | float
-ROW  = list[ATOM]
-ROWS = list[ROW]
-NUM, SYM, DATA = obj,obj,obj
-COL  = NUM | SYM
-THING = COL | DATA
-
+# ATOM = str | int | float
+# ROW  = list[ATOM]
+# ROWS = list[ROW]
+# NUM, SYM, DATA = obj,obj,obj
+# COL  = NUM | SYM
+# THING = COL | DATA
 BIG=1e32
-the=obj(bins=7, budget=30, seed=1, warm=4, data="data.csv")
+the=obj(bins=7, budget=50, seed=1, data="data.csv")
 
 ### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -57,11 +56,9 @@ def clone(data, rows=None): return adds(rows, Data([data.cols.names]))
 def adds(src, i=None): # (src:Iterable, ?i) -> i
   i = i or Num(); [add(i,v) for v in src or []]; return i
 
-def sub(i, v): return add(i, v, inc=-1)
-
 def add(i, v, inc=1):
   if v!="?":
-    if Data is i.it and not i.cols: i.cols = Cols(v) # initializing, not adding
+    if Data is i.it and not i.cols: i.cols = Cols(v) # init, not adding
     else:
       i.n += inc # adding
       if   Sym is i.it: i.has[v] = inc + i.has.get(v,0)
@@ -72,8 +69,8 @@ def add(i, v, inc=1):
           d = v-i.mu; i.mu += inc*d/i.n; i.m2 += inc*d*(v-i.mu)
       else:
         i._centroid = None # old centroid now out of date
-        [add(col, v[col.at], inc) for col in i.cols.all] # recursive add to cols
-        (i.rows.append if inc>0 else i.rows.remove)(v)   # handle row storage
+        [add(col, v[col.at], inc) for col in i.cols.all] # recursive add 
+        (i.rows.append if inc>0 else i.rows.remove)(v)   # row storage
   return v # convention: always return the thing being added
 
 def norm(num,n):
@@ -81,9 +78,9 @@ def norm(num,n):
   z = max(-3, min(3, z))
   return 1 / (1 + exp(-1.7 * z))
 
-def sd(num): return 1/BIG + (0 if num.n<2 else sqrt(max(0,num.m2)/(num.n - 1)))
+def sd(num): return 1/BIG + (0 if num.n<2 else sqrt(max(0,num.m2)/(num.n-1)))
 
-def mid(col): return col.mu if Num is col.it else max(col.has, key=col.has.get)
+def mid(col): return col.mu if Num is col.it else max(col.has,key=col.has.get)
 
 def mids(data):
   data._centroid = data._centroid or [mid(col) for col in data.cols.all]
@@ -105,35 +102,8 @@ def _aha(col,u,v):
   v = v if v != "?" else (0 if u>0.5 else 1)
   return abs(u - v)
 
-def peeking(data,rows):            # best if rows arrived shuffled
-  d = clone(data, rows[:the.warm]) # all rows labelled by this function
-  a,z = clone(data),clone(data)    # best, rest labelled rows
-  x = lambda r: distx(d,r,mids(a)) - distx(d,r,mids(z)) # <0 if closest to best
-  y = lambda r: disty(d,r) # distanace of goals to "heaven" (best values)
-  d.rows.sorted(key=y)
-  adds(d.rows[:the.warm//2], a)
-  adds(d.rows[the.warm//2:], z)
-  for r in rows[the.warm:]:
-    if d.n >= the.budget: break
-    elif x(r) < 0:
-      add(d, add(a,r))
-      if a.n > sqrt(d.n): # too many best things
-        a.rows.sorted(key=y)
-        add(z, sub(a, a.rows[-1])) # demote worse row in best to rest
-  d.rows.sort(key=x)
-  return obj(sorter=x, labelled=d)
-
 ## Cutting -------------------------------------------------------------------
 def score(num): return num.mu + sd(num) / (sqrt(num.n) + 1/BIG)
-
-def selects(rules,rows):
-  print(" ")
-  for row in rows:
-    good=True
-    for rule in rules:
-      print(rule.txt, rule.xlo, rule.xhi)
-      if not select(rule,row): good=False
-    if good: yield row
 
 def select(rule, row):
   if (x:=row[rule.at]) == "?" or rule.xlo == rule.xhi == x: return True
@@ -191,8 +161,6 @@ def csv(fileName):
 def shuffle(lst): random.shuffle(lst); return lst
 
 #-----------------------------------------------------------------------------
-File=str(Path.home()) + "/gits/moot/optimize/misc/auto93.csv"
-
 def go_h(_=None):
   ": show help"
   print(__doc__,"\n\nOptions:\n")
@@ -216,7 +184,7 @@ def go_B(n=the.budget):
   "INT : set BUDGET for rows labelled each round"
   the.budget = n
 
-def go__all(file=File):
+def go__all(file=the.data):
   "FILE : run all actions that use a FILE"
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all":
@@ -234,7 +202,7 @@ def go__sym(_=None):
   print(sym.has)
   assert sym.has["a"]==5
 
-def go__csv(file=File):
+def go__csv(file=the.data):
   "FILE : test csv loading"
   total=0
   for n,row in enumerate(csv(file)):
@@ -243,7 +211,7 @@ def go__csv(file=File):
     if n % 40==0: print(row)
   assert 3184 == total
 
-def go__data(file=File):
+def go__data(file=the.data):
   "FILE : test ading columns from file"
   data =  Data(csv(file))
   total = sum(len(row) for row in data.rows)
@@ -252,28 +220,13 @@ def go__data(file=File):
   assert 3184 == total
   for col in data.cols.x: print(o(col))
 
-def go__clone(file=File):
+def go__clone(file=the.data):
   "FILE : test echoing structure of a table to a new table"
   data1 =  Data(csv(file))
   data2 = clone(data1,data1.rows)
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
-def go__inc(file=File):
-  data1 = Data(csv(file))
-  data2 = clone(data1)
-  for row in data1.rows:
-    add(data2,row)
-    if len(data2.rows)==50: one= mids(data2)
-  two = mids(data2)
-  for row in data1.rows[::-1]:
-    sub(data2,row)
-    if len(data2.rows)==50: three=mids(data2)
-  assert two != one
-  for a,c in zip(one,three):
-    a,c = round(a,4),round(c,4)
-    assert a==c 
-
-def go__distx(file=File):
+def go__distx(file=the.data):
   "FILE : can we sort rows by their distance to one row?"
   data=Data(csv(file))
   print(*data.cols.names,"distx",sep=",")
@@ -283,7 +236,7 @@ def go__distx(file=File):
     assert 0 <= distx(data, r1,r2) <= 1
     if n%40==0: print(*r2,o(distx(data,r1,r2)),sep=",")
 
-def go__disty(file=File):
+def go__disty(file=the.data):
   "FILE : can we sort rows by their distance to heaven?"
   data=Data(csv(file))
   print(*data.cols.names,"disty",sep=",")
@@ -294,7 +247,7 @@ def go__disty(file=File):
       assert disty(data, r1) >= disty(data,r2)
     if n%40==0: print(*r1,o(disty(data, r1)),sep=",")
 
-def go__bins(file=File):
+def go__bins(file=the.data):
   "FILE : show the rankings of a range"
   data = Data(csv(file))
   all_bins = (b for col in data.cols.x for b in cuts(col, data.rows, data))
@@ -302,7 +255,7 @@ def go__bins(file=File):
     print(b.txt,b.xlo,b.xhi, o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
                                scored= score(b.y)),sep="\t")
 
-def go__xai(file=File):
+def go__xai(file=the.data):
   "FILE : can we succinctly list main effects in a table?"
   print("\n"+re.sub(r"^.*/","",file))
   xai(Data(csv(file)))
@@ -318,50 +271,50 @@ def xai(data,rows=None,loud=True):
   def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
   def go(rows, lvl=0, prefix=""):
     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-    if loud: print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
+    if loud: 
+      print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
     if rule := cut(data, rows):
       rules.append(rule)
       now = [row for row in rows if select(rule, row)]
       if 2 < len(now) < len(rows):
-        txt = rule.xlo if rule.xlo==rule.xhi else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
+        txt = rule.xlo if rule.xlo==rule.xhi \
+                       else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
         return go(now, lvl + 1, f"{rule.txt} is {txt}")
     return rules,rows
   rules=[]
   return go(rows or data.rows, 0)
 
-def go__lurch(file=File):
+def go__lurch(file=the.data):
   "FILE : can we succinctly list main effects in a table using random selection?"
   print("\n"+re.sub(r"^.*/","",file))
   data = Data(csv(file))
-  ninety,few=Num(),Num()
+  ninety,few,br=Num(),Num(),Num()
   Y= lambda row: disty(data,row)
   def learn(train,test):
      labelled=clone(data,train)
      _,best= xai(labelled,loud=False)
      bmid = mids(clone(data,best))
-     test.sort(key=lambda row: distx(labelled,row,bmid))
-     return Y(min(test[:5], key=Y))
+     return sorted(test, key=lambda row: distx(labelled,row,bmid))
+  def poles(train,test):
+    train.sort(key=lambda row: disty(data,row))
+    n=int(sqrt(len(train)))
+    bmid,rmid = mids(clone(data, train[:n])), mids(clone(data,train[n:]))
+    seen=clone(data,train)
+    return sorted(test, key=lambda r: distx(seen, r,bmid)- distx(seen,r,rmid))
+  def check(rows): return Y(min(rows[:5], key=Y))
   for _ in range(20):
     rows   = shuffle(data.rows)
     train1 = rows[:int(0.9*len(rows))]
     train2 = rows[:the.budget]
     test   = rows[len(rows)//2:]
-    add(ninety, learn(train1,test))
-    add(few,    learn(train2,test))
+    add(ninety, check(learn(train1,test)))
+    add(few,    check(learn(train2,test)))
+    add(br,     check(poles(train2,test)))
   all = adds(Y(row) for row in data.rows)
   print("b4",o(mu=all.mu,sd=sd(all)),sep="\t")
   print("90%",o(mu=ninety.mu,sd=sd(ninety)),sep="\t")
-  print(the.budget+5,o(mu=few.mu,sd=sd(few)),sep="\t")
-
-def go_peeking(file=File):
-  data = Data(csv(file))
-  n=len(data.rows)//2
-  train,test = shuffle(data.rows[:n]). data.rows[n:]
-  model=peeking(data, train)
-  xai(model.labelled)
-  row = min(test.sort(key=model.sorter)[:5],
-            key=lambda r:ydist(data.r))
-  print(row,ydist(data,row))
+  print(f"rules{the.budget+5}",o(mu=few.mu,sd=sd(few)),sep="\t")
+  print("br" ,o(mu=br.mu,sd=sd(br)),sep="\t")
 
 if __name__ == "__main__":
   go_s(1)
