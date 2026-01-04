@@ -149,12 +149,13 @@ def cutsComplete(col, cuts):
 
 ## Trees -------------------------------------------------------------------
 # Trees recursively cut data.
-def Tree(n,mu, cut):
-  return obj(it=Tree, n=n, mu=mu, cut=cut, kids={})
+def Tree(n,mu,mids, cut):
+  return obj(it=Tree, n=n, mu=mu, mids=mids,cut=cut, kids={})
 
 def treeGrow(data, rows=None, cut=None):
   rows = rows or data.rows
-  tree = Tree(len(rows), disty(data,mids(clone(data,rows))), cut)
+  tree = Tree(len(rows), disty(data,mids(clone(data,rows))), 
+              mids(clone(data,rows))[len(data.cols.x)+1:],cut)
   if len(rows) > the.leaf*2:
     if cut1 := cutRows(data,rows):
       y,n = [],[]
@@ -165,8 +166,10 @@ def treeGrow(data, rows=None, cut=None):
   return tree
 
 def treeShow(tree, lvl=0,accept=True):
-  here=f"{cutShow(tree.cut,accept)} " if lvl>0 else ""
-  print(f"{o(tree.mu):6}{tree.n:>4}   {'| ' * (lvl-1) }{here}")
+  if lvl==0: print(" ")
+  here=f"{cutShow(tree.cut,accept)} " if lvl>0 else "."
+  report = f"{o(tree.mu):6}{tree.n:>4}   {'| ' * (lvl-1) }{here}"
+  print(f"{report:60}",*[round(n,1) for n in tree.mids])
   for k, kid in tree.kids.items():
     treeShow(kid, lvl + 1,k)
 
@@ -179,7 +182,7 @@ def treeLeaf(tree,row):
 def gauss(mid,div):
   return mid + 2 * div * (sum(random.random() for _ in range(3)) - 1.5)
 
-def o(v=None, DEC=3,**D):
+def o(v=None, DEC=2,**D):
   if D: return o(D,DEC=DEC)
   isa = isinstance
   if isa(v, (int, float)): return f"{round(v, DEC):_}"
@@ -307,8 +310,12 @@ def go__bins(file=the.data):
                                scored= cutScore(b)),sep="\t")
 
 def go__tree(file=the.data):
-  data = Data(csv(file))
-  treeShow(treeGrow(clone(data, shuffle(data.rows)[:the.budget])))
+  data1 = Data(csv(file))
+  rows = shuffle(data1.rows)[:teh.budget]
+  print(len(rows))
+  tree = treeGrow(clone(data, shuffle(data.rows)[:the.budget]))
+  treeShow(tree)
+  
 
 
 # def go__xai(file=the.data):

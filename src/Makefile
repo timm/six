@@ -12,6 +12,9 @@ egs: ## run all tests
 ~/tmp/lurch.log:  ## run on many files
 	$(MAKE) todo=lurch files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
 
+~/tmp/tree.log:  ## run on many files
+	$(MAKE) todo=tree files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
+
 run16:
 	@mkdir -p ~/tmp
 	time ls -r $(files) | xargs -P 16 -n 1 -I{} sh -c 'python3 -B xai4.py --$(todo)  "{}"'
