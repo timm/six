@@ -30,7 +30,7 @@ from pathlib import Path
 # COL  = NUM | SYM
 # THING = COL | DATA
 BIG=1e32
-the=obj(bins=7, budget=30, seed=1, leaf=2, data="data.csv")
+the=obj(bins=7, budget=30, seed=1, leaf=2, check=5, data="data.csv")
 
 ### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -149,34 +149,39 @@ def cutsComplete(col, cuts):
 
 ## Trees -------------------------------------------------------------------
 # Trees recursively cut data.
-def Tree(n,mu,mids, cut):
-  return obj(it=Tree, n=n, mu=mu, mids=mids,cut=cut, kids={})
+def Tree(n, mu, mids, cut):
+  return obj(it=Tree, n=n, mu=mu, mids=mids, cut=cut, kids={})
 
 def treeGrow(data, rows=None, cut=None):
   rows = rows or data.rows
-  tree = Tree(len(rows), disty(data,mids(clone(data,rows))), 
-              mids(clone(data,rows))[len(data.cols.x)+1:],cut)
+  tree = Tree(len(rows), 
+              disty(data,mids(clone(data,rows))), 
+              mids(clone(data,rows))[len(data.cols.x)+1:],
+              cut)
   if len(rows) > the.leaf*2:
     if cut1 := cutRows(data,rows):
-      y,n = [],[]
-      for row in rows: (y if cutSelects(cut1,row) else n).append(row)
-      if y and n: 
-        tree.kids[True]  = treeGrow(data, y, cut1)
-        tree.kids[False] = treeGrow(data, n, cut1)
+      ok,no = [],[]
+      for row in rows: (ok if cutSelects(cut1,row) else no).append(row)
+      if ok and no: 
+        tree.kids[True]  = treeGrow(data, ok, cut1)
+        tree.kids[False] = treeGrow(data, no, cut1)
   return tree
 
-def treeShow(tree, lvl=0,accept=True):
+def treeShow(tree, lvl=0,accept=True,width=60,dec=1):
   if lvl==0: print(" ")
-  here=f"{cutShow(tree.cut,accept)} " if lvl>0 else "."
-  report = f"{o(tree.mu):6}{tree.n:>4}   {'| ' * (lvl-1) }{here}"
-  print(f"{report:60}",*[round(n,1) for n in tree.mids])
+  here = f"{cutShow(tree.cut,accept)} " if lvl>0 else "."
+  report = f"{'| ' * (lvl-1)}{here}"
+  print(f"{report:{width}}: {o(tree.mu):6}: {tree.n:>4} : ",
+        ', '.join([f"{n:.{dec}f}"for n in tree.mids]))
   for k, kid in tree.kids.items():
-    treeShow(kid, lvl + 1,k)
+    treeShow(kid, lvl + 1,k,width,dec)
 
-def treeLeaf(tree,row):
+def treeLeaf(tree, row):
   if tree.kids:
-    return treeLeaf( tree.kids[cutSelects(tree.cut,row)], row)
+    rule = tree.kids[True].cut 
+    return treeLeaf(tree.kids[cutSelects(rule, row)], row)
   return tree
+
    
 ## Lib -----------------------------------------------------------------------
 def gauss(mid,div):
@@ -229,8 +234,12 @@ def go_B(n=the.budget):
   "INT : set BUDGET for rows labelled each round"
   the.budget = n
 
+def go_c(n=the.check):
+  "INT : set numer of evals for final check"
+  the.check = n
+
 def go_l(n=the.leaf):
-  "INT : set minumum exampels per leaf"
+  "INT : set minimum exampels per leaf"
   the.leaf = n
 
 def go_s(n=the.seed):
@@ -309,76 +318,36 @@ def go__bins(file=the.data):
     print(f"{cutShow(b):20}", o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
                                scored= cutScore(b)),sep="\t")
 
-def go__tree(file=the.data):
-  data1 = Data(csv(file))
-  rows = shuffle(data1.rows)[:teh.budget]
-  print(len(rows))
-  tree = treeGrow(clone(data, shuffle(data.rows)[:the.budget]))
-  treeShow(tree)
+def go__xai(file=the.data, repeats=1):
+  data = Data(csv(file))
+  b4   = sorted([disty(data,row) for row in data.rows])
+  lo   = b4[0]
+  mid  = b4[len(b4)//2]
+  Y    = lambda row: disty(data,row)
+  win  = lambda row: int(100*(1- (Y(row) - lo)/ (mid - lo + 1/BIG)))
+  nums = Num()
+  wins = Num()
+  n    = len(data.rows)//2
+  for _ in range(repeats):
+    rows = shuffle(data.rows)
+    test = rows[n:]
+    train= clone(data,rows[:n][:the.budget-the.check])
+    tree = treeGrow(train)
+    if repeats == 1: treeShow(tree,width=35)
+    X = lambda row: treeLeaf(tree,row).mu
+    guess = min(sorted(test,key=X)[:the.check],key=Y)
+    if repeats==1:
+      print(o(x=len(data.cols.x), y=len(data.cols.y), rows=len(data.rows),
+              lo=lo, mid=mid, guess=Y(guess), win=win(guess)))
+    else:
+      add(nums, Y(guess))
+      add(wins, win(guess))
+  if repeats>1:
+    print(o(wins=wins.mu, n=nums.n, lo=lo, mid=mid, guess=o(nums.mu)),
+         re.sub(r".*/","",file))
+    
+def go__xais(file=the.data): go__xai(file,repeats=20)
   
-
-
-# def go__xai(file=the.data):
-#   "FILE : can we succinctly list main effects in a table?"
-#   print("\n"+re.sub(r"^.*/","",file))
-#   xai(Data(csv(file)))
-
-# def xai(data,rows=None,loud=True):
-#   if loud:
-#     print("x : ",len(data.cols.x))
-#     print("y : ",len(data.cols.y))
-#     print("r : ",len(data.rows))
-#     print("b : ",the.bins)
-#   def goals(data,row): return [row[goal.at] for goal in data.cols.y]
-#   if loud: print(*goals(data,data.cols.names),sep=",")
-#   def show(n): return "-\u221e" if n==-BIG else "\u221e" if n==BIG else o(n)
-#   def go(rows, lvl=0, prefix=""):
-#     ys = Num(); rows.sort(key=lambda row: add(ys, disty(data, row)))
-#     if loud: 
-#       print(f"{o(goals(data,mids(clone(data,rows))))},: {o(mu=ys.mu, n=ys.n, sd=sd(ys)):25s} {prefix}")
-#     if rule := cutRows(data, rows):
-#       rules.append(rule)
-#       now = [row for row in rows if select(rule, row)]
-#       if 2 < len(now) < len(rows):
-#         txt = rule.xlo if rule.xlo==rule.xhi \
-#                        else f"[{show(rule.xlo)} .. {show(rule.xhi)})"
-#         return go(now, lvl + 1, f"{rule.txt} is {txt}")
-#     return rules,rows
-#   rules=[]
-#   return go(rows or data.rows, 0)
-
-# def go__lurch(file=the.data):
-#   "FILE : can we succinctly list main effects in a table using random selection?"
-#   print("\n"+re.sub(r"^.*/","",file))
-#   data = Data(csv(file))
-#   ninety,few,br=Num(),Num(),Num()
-#   Y= lambda row: disty(data,row)
-#   def learn(train,test):
-#      labelled=clone(data,train)
-#      _,best= xai(labelled,loud=False)
-#      bmid = mids(clone(data,best))
-#      return sorted(test, key=lambda row: distx(labelled,row,bmid))
-#   def poles(train,test):
-#     train.sort(key=lambda row: disty(data,row))
-#     n=int(sqrt(len(train)))
-#     bmid,rmid = mids(clone(data, train[:n])), mids(clone(data,train[n:]))
-#     seen=clone(data,train)
-#     return sorted(test, key=lambda r: distx(seen, r,bmid)- distx(seen,r,rmid))
-#   def check(rows): return Y(min(rows[:5], key=Y))
-  # for _ in range(20):
-  #   rows   = shuffle(data.rows)
-  #   train1 = rows[:int(0.9*len(rows))]
-  #   train2 = rows[:the.budget]
-  #   test   = rows[len(rows)//2:]
-  #   add(ninety, check(learn(train1,test)))
-  #   add(few,    check(learn(train2,test)))
-  #   add(br,     check(poles(train2,test)))
-  # all = adds(Y(row) for row in data.rows)
-  # print("b4",o(mu=all.mu,sd=sd(all)),sep="\t")
-  # print("90%",o(mu=ninety.mu,sd=sd(ninety)),sep="\t")
-  # print(f"rules{the.budget+5}",o(mu=few.mu,sd=sd(few)),sep="\t")
-  # print("br" ,o(mu=br.mu,sd=sd(br)),sep="\t")
-
 if __name__ == "__main__":
   go_s(1)
   for n, s in enumerate(sys.argv):
