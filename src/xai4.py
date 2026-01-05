@@ -17,20 +17,22 @@ To download example data:
 
 To download code, install it, then test it, download this file then:
   chmod +x xai.py
-  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv"""
+  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv
+
+Options:
+  -h                help
+  -b bins=7         set number of bins for discretization
+  -B Budget=30      set number of rows to evaluate
+  -C Check=5        set number of guesses to check
+  -d data=data.csv  set data to load
+  -l leaf=2         set examples per leaves in a tree
+  -s seed=1         set random number seed"""
 import ast,sys,random,re
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
 from pathlib import Path
 
-# ATOM = str | int | float
-# ROW  = list[ATOM]
-# ROWS = list[ROW]
-# NUM, SYM, DATA = obj,obj,obj
-# COL  = NUM | SYM
-# THING = COL | DATA
 BIG=1e32
-the=obj(bins=7, budget=30, seed=1, leaf=2, check=5, data="data.csv")
 
 ### Constructors -----------------------------------------------------------
 def Sym(): return obj(it=Sym, n=0, has={})
@@ -203,7 +205,7 @@ def coerce(s):
   except Exception as _:
     try: return float(s)
     except Exception as _:
-      s=s.strip()
+      s = s.strip()
       return {"true":True, "false":False}.get(s,s)
 
 def csv(fileName):
@@ -215,42 +217,13 @@ def csv(fileName):
 def shuffle(lst): random.shuffle(lst); return lst
 
 #-----------------------------------------------------------------------------
-def go_h(_=None):
-  ": show help"
-  print(__doc__,"\n\nOptions:\n")
-  for k,f in globals().items():
-    if k.startswith("go_") and f.__doc__:
-      left, right = f.__doc__.split(":")
-      left = k[2:].replace("_","-") + " " + left.strip()
-      d = f.__defaults__
-      default = f"(default: {d[0]})" if d else ""
-      print(f"  {left:15}   {right.strip()} {default}")
-
-def go_b(n=the.bins):
-  "INT : set number of BINS used on discretization"
-  the.bins = n
-
-def go_B(n=the.budget):
-  "INT : set BUDGET for rows labelled each round"
-  the.budget = n
-
-def go_c(n=the.check):
-  "INT : set numer of evals for final check"
-  the.check = n
-
-def go_l(n=the.leaf):
-  "INT : set minimum exampels per leaf"
-  the.leaf = n
-
-def go_s(n=the.seed):
-  "INT : set random number seed"
-  the.seed = n; random.seed(n)
+the = obj(**{m[0]:coerce(m[1]) for m in re.findall(r"(\w+)=(\S+)", __doc__)})
 
 def go__all(file=the.data):
-  "FILE : run all actions that use a FILE"
+  "FILE : run all the following" 
   for k,fun in globals().items():
     if k.startswith("go__") and k != "go__all":
-      go_s(1)
+      random.seed(the.seed)
       print("\n#",k,"------------"); fun(file)
 
 def go__num(_=None):
@@ -290,7 +263,7 @@ def go__clone(file=the.data):
   assert data1.cols.x[1].mu == data2.cols.x[1].mu
 
 def go__distx(file=the.data):
-  "FILE : can we sort rows by their distance to one row?"
+  "FILE : show we sort rows by their distance to one row?"
   data=Data(csv(file))
   print(*data.cols.names,"distx",sep=",")
   r1 = data.rows[0]
@@ -300,7 +273,7 @@ def go__distx(file=the.data):
     if n%40==0: print(*r2,o(distx(data,r1,r2)),sep=",")
 
 def go__disty(file=the.data):
-  "FILE : can we sort rows by their distance to heaven?"
+  "FILE : show we sort rows by their distance to heaven?"
   data=Data(csv(file))
   print(*data.cols.names,"disty",sep=",")
   data.rows.sort(key=lambda r: disty(data,r))
@@ -311,14 +284,15 @@ def go__disty(file=the.data):
     if n%40==0: print(*r1,o(disty(data, r1)),sep=",")
 
 def go__bins(file=the.data):
-  "FILE : show the rankings of a range"
+  "FILE : show the rankings of nins"
   data = Data(csv(file))
   all_bins = (b for col in data.cols.x for b in cutsRows(col, data.rows, data))
   for b in sorted(all_bins, key=lambda b: cutScore(b)):
     print(f"{cutShow(b):20}", o(mu=b.y.mu, sd=sd(b.y), n=b.y.n, 
                                scored= cutScore(b)),sep="\t")
 
-def go__xai(file=the.data, repeats=1):
+def go__tree(file=the.data, repeats=1):
+  "FILE : compare results from all rows vs a tree build from a few rows"
   data = Data(csv(file))
   b4   = sorted([disty(data,row) for row in data.rows])
   lo   = b4[0]
@@ -331,11 +305,11 @@ def go__xai(file=the.data, repeats=1):
   for _ in range(repeats):
     rows = shuffle(data.rows)
     test = rows[n:]
-    train= clone(data,rows[:n][:the.budget-the.check])
+    train= clone(data,rows[:n][:the.Budget-the.Check])
     tree = treeGrow(train)
     if repeats == 1: treeShow(tree,width=35)
     X = lambda row: treeLeaf(tree,row).mu
-    guess = min(sorted(test,key=X)[:the.check],key=Y)
+    guess = min(sorted(test,key=X)[:the.Check],key=Y)
     if repeats==1:
       print(o(x=len(data.cols.x), y=len(data.cols.y), rows=len(data.rows),
               lo=lo, mid=mid, guess=Y(guess), win=win(guess)))
@@ -347,9 +321,27 @@ def go__xai(file=the.data, repeats=1):
          re.sub(r".*/","",file))
     
 def go__xais(file=the.data): go__xai(file,repeats=20)
-  
-if __name__ == "__main__":
-  go_s(1)
+
+#-----------------------------------------------------------------------------
+def main(funs,settings):
   for n, s in enumerate(sys.argv):
-    if fn := vars().get(f"go{s.replace('-', '_')}"):
-      fn(coerce(sys.argv[n+1])) if n < len(sys.argv) - 1 else fn()
+    arg = coerce(sys.argv[n + 1]) if n < len(sys.argv) - 1 else None
+    if fn := funs.get(f"go{s.replace('-', '_')}"):
+      fn(arg) if arg is not None else fn()
+    elif s=="-h":
+      showHelp(funs)
+    else:
+      for k in settings.__dict__:
+        if k[0]== s.lstrip("-")[0]: settings[k] = arg
+  return settings
+
+def showHelp(funs, prefix="go_"):
+  print(__doc__)
+  for k,f in funs.items():
+    if k.startswith(prefix) and f.__doc__:
+      left, right = f.__doc__.split(":")
+      left = k[2:].replace("_","-") + " " + left.strip()
+      print(f"  {left:15}   {right.strip()}")
+
+random.seed(the.seed)
+if __name__ == "__main__": the = main(vars(), the)
