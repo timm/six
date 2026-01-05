@@ -1,32 +1,30 @@
 #!/usr/bin/env python3 -B
 """
-xai.py: explainable multi-objective optimzation
-(c) 2025 Tim Menzies, MIT license
-
-Input is CSV. Header (row 1) defines column roles as follows:
-  [A-Z]* : Numeric (e.g. "Age").     [a-z]* : Symbolic (e.g. "job").
-  *+     : Mximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").
-  *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)
-
+xai.py: explainable multi-objective optimzation   
+(c) 2025 Tim Menzies, MIT license   
+   
+Input is CSV. Header (row 1) defines column roles as follows:   
+  [A-Z]* : Numeric (e.g. "Age").     [a-z]* : Symbolic (e.g. "job").   
+  *+     : Mximize (e.g. "Pay+").    *-     : Minimize (e.g. "Cost-").   
+  *X     : Ignored (e.g. "idX").     ?      : Missing value (not in header)   
+   
 For help on command line options:
   ./xai.py -h
 
-To download example data:
-  mkdir -p $HOME/gits
-  git clone http://github.com/timm/moot $HOME/gits/moot
-
-To download code, install it, then test it, download this file then:
-  chmod +x xai.py
-  ./xai.py --xai ~/gits/moot/optimize/misc/auto93.csv
-
-Options:
-  -h                help
-  -b bins=7         set number of bins for discretization
-  -B Budget=30      set number of rows to evaluate
-  -C Check=5        set number of guesses to check
-  -d data=data.csv  set data to load
-  -l leaf=2         set examples per leaves in a tree
-  -s seed=1         set random number seed"""
+To install and test, got to http://tiny.cc/xaipy and download file. Then:   
+  chmod +x xai.py   
+  mkdir -p $HOME/gits   # download sample data    
+  git clone http://github.com/timm/moot $HOME/gits/moot   
+  ./xai.py --tree ~/gits/moot/optimize/misc/auto93.csv   
+   
+Options:   
+  -h                help   
+  -b bins=7         set number of bins for discretization   
+  -B Budget=30      set number of rows to evaluate   
+  -C Check=5        set number of guesses to check   
+  -d data=data.csv  set data to load   
+  -l leaf=2         set examples per leaves in a tree   
+  -s seed=1         set random number seed   """
 import ast,sys,random,re
 from math import sqrt,exp,floor
 from types import SimpleNamespace as obj
@@ -151,30 +149,36 @@ def cutsComplete(col, cuts):
 
 ## Trees -------------------------------------------------------------------
 # Trees recursively cut data.
-def Tree(n, mu, mids, cut):
-  return obj(it=Tree, n=n, mu=mu, mids=mids, cut=cut, kids={})
+def Tree(n, mu, mids, cut, goals):
+  return obj(it=Tree, n=n, mu=mu, mids=mids, cut=cut, kids={}, goals=goals)
 
-def treeGrow(data, rows=None, cut=None):
+def treeGrow(data, rows=None, cut=None, uses=set()):
   rows = rows or data.rows
+  centroid=mids(clone(data,rows))
   tree = Tree(len(rows), 
-              disty(data,mids(clone(data,rows))), 
-              mids(clone(data,rows))[len(data.cols.x)+1:],
-              cut)
+              disty(data,centroid),
+              [centroid[col.at] for col in data.cols.y],
+              cut,
+              [col.txt for col in data.cols.y])
   if len(rows) > the.leaf*2:
     if cut1 := cutRows(data,rows):
       ok,no = [],[]
       for row in rows: (ok if cutSelects(cut1,row) else no).append(row)
-      if ok and no: 
-        tree.kids[True]  = treeGrow(data, ok, cut1)
-        tree.kids[False] = treeGrow(data, no, cut1)
+      if ok and no:
+        uses.add(cut1.txt)
+        tree.kids[True]  = treeGrow(data, ok, cut1, uses)
+        tree.kids[False] = treeGrow(data, no, cut1, uses)
   return tree
 
 def treeShow(tree, lvl=0,accept=True,width=60,dec=1):
-  if lvl==0: print(" ")
+  if lvl==0:
+    print(" ")
+    print((' ' * width)+f"  score     N   ",', '.join(tree.goals))
+    print((' ' * width)+f"  -----    ---   -------------------")
   here = f"{cutShow(tree.cut,accept)} " if lvl>0 else "."
   report = f"{'| ' * (lvl-1)}{here}"
   print(f"{report:{width}}: {o(tree.mu):6}: {tree.n:>4} : ",
-        ', '.join([f"{n:.{dec}f}"for n in tree.mids]))
+        ', '.join([f"{o(n,DEC=dec)}"for n in tree.mids]))
   for k, kid in tree.kids.items():
     treeShow(kid, lvl + 1,k,width,dec)
 
@@ -306,12 +310,13 @@ def go__tree(file=the.data, repeats=1):
     rows = shuffle(data.rows)
     test = rows[n:]
     train= clone(data,rows[:n][:the.Budget-the.Check])
-    tree = treeGrow(train)
+    uses=set()
+    tree = treeGrow(train,uses=uses)
     if repeats == 1: treeShow(tree,width=35)
     X = lambda row: treeLeaf(tree,row).mu
     guess = min(sorted(test,key=X)[:the.Check],key=Y)
     if repeats==1:
-      print(o(x=len(data.cols.x), y=len(data.cols.y), rows=len(data.rows),
+      print(o(uses=len(uses), x=len(data.cols.x), y=len(data.cols.y), rows=len(data.rows),
               lo=lo, mid=mid, guess=Y(guess), win=win(guess)))
     else:
       add(nums, Y(guess))
@@ -332,7 +337,7 @@ def main(funs,settings):
       showHelp(funs)
     else:
       for k in settings.__dict__:
-        if k[0]== s.lstrip("-")[0]: settings[k] = arg
+        if k[0]== s.lstrip("-")[0]: settings.__dict__[k] = arg
   return settings
 
 def showHelp(funs, prefix="go_"):
