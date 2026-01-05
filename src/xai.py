@@ -320,7 +320,7 @@ def go__tree(file=the.data, repeats=1):
     print(o(wins=wins.mu, n=nums.n, lo=lo, mid=mid, guess=o(nums.mu)),
          re.sub(r".*/","",file))
     
-def go__xais(file=the.data): go__xai(file,repeats=20)
+def go__xais(file=the.data): go__tree(file,repeats=20)
 
 #-----------------------------------------------------------------------------
 def main(funs,settings):

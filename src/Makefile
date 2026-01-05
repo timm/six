@@ -13,7 +13,7 @@ egs: ## run all tests
 	$(MAKE) todo=lurch files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
 
 ~/tmp/tree.log:  ## run on many files
-	$(MAKE) todo=xai files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
+	$(MAKE) todo=tree files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
 
 ~/tmp/xais.log:  ## run on many files
 	$(MAKE) todo=xais files="$(HOME)/gits/moot/optimize/*/*.csv" run16| tee $@ 
