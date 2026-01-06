@@ -2,7 +2,7 @@
 
 <img width="300" align=right  alt="image" src="https://github.com/user-attachments/assets/65b3bb75-45ad-4d52-87d8-29f4909ac27d" />
 
-Copyright (c) 2025 Tim Menzies
+Copyright (c) 2025 Tim Menzies.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
