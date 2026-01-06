@@ -341,7 +341,7 @@ def main(funs,settings):
   return settings
 
 def showHelp(funs, prefix="go_"):
-  print(__doc__)
+  print(__doc__);
   for k,f in funs.items():
     if k.startswith(prefix) and f.__doc__:
       left, right = f.__doc__.split(":")
