@@ -38,7 +38,7 @@ def Num(): return obj(it=Num, n=0, mu=0, m2=0)
 
 def Col(at=0, txt=" "):
   col = (Num if txt[0].isupper() else Sym)()
-  col.at, col.txt, col.best = at, txt, 0 if txt[-1]=="-" else 1
+  col.at, col.txt, col.target = at, txt, 0 if txt[-1]=="-" else 1
   return col
 
 def Cols(names): # (list[str]) -> Cols
@@ -89,7 +89,7 @@ def mids(data):
 
 def disty(data,row):
   ys = data.cols.y
-  return sqrt(sum(abs(norm(y,row[y.at]) - y.best)**2 for y in ys) / len(ys))
+  return sqrt(sum(abs(norm(y,row[y.at]) - y.target)**2 for y in ys) / len(ys))
 
 def distx(data,row1,row2):
   xs = data.cols.x
@@ -126,11 +126,11 @@ def cutScore(cut):
   if cut.y.n<the.leaf: return BIG
   return cut.y.mu + sd(cut.y) / (sqrt(cut.y.n) + 1/BIG)
 
-def cutRows(data, rows):
-  all_bins = (b for col in data.cols.x for b in cutsRows(col, rows, data))
+def cutBest(data, rows):
+  all_bins = (b for col in data.cols.x for b in cutsAll(col, rows, data))
   return min(all_bins, key=lambda b: cutScore(b), default=None)
 
-def cutsRows(col, rows, data):
+def cutsAll(col, rows, data):
   d, xys = {}, [(r[col.at], disty(data, r)) for r in rows if r[col.at]!="?"]
   for x, y in sorted(xys):
     k = x if Sym is col.it else floor(the.bins * norm(col, x))
@@ -161,7 +161,7 @@ def treeGrow(data, rows=None, cut=None, uses=set()):
               cut,
               [col.txt for col in data.cols.y])
   if len(rows) > the.leaf*2:
-    if cut1 := cutRows(data,rows):
+    if cut1 := cutBest(data,rows):
       ok,no = [],[]
       for row in rows: (ok if cutSelects(cut1,row) else no).append(row)
       if ok and no:
